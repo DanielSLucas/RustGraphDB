@@ -1,0 +1,1 @@
+{"nodes":{"3":{"id":3,"label":"Alice","properties":{}},"2":{"id":2,"label":"Vitor Freire","properties":{}},"1":{"id":1,"label":"Daniel","properties":{}}},"edges":{"2":{"id":2,"from":1,"to":3,"label":"colleague of","properties":{}},"1":{"id":1,"from":1,"to":2,"label":"friends with","properties":{}}},"adjacency_list":{"1":[2,3]},"next_node_id":3,"next_edge_id":2}

@@ -1,13 +1,15 @@
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Node {
-  id: u64,
+  id: usize,
   label: String,
   properties: HashMap<String, String>,
 }
 
 impl Node {
-  pub fn id(&self) -> u64 {
+  pub fn id(&self) -> usize {
     self.id
   }
 
@@ -20,19 +22,25 @@ impl Node {
   }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Edge {
-  from: u64,
-  to: u64,
+  id: usize,
+  from: usize,
+  to: usize,
   label: String,
   properties: HashMap<String, String>,
 }
 
 impl Edge {
-  pub fn from(&self) -> u64 {
+  pub fn id(&self) -> usize {
+    self.id
+  }
+
+  pub fn from(&self) -> usize {
     self.from
   }
 
-  pub fn to(&self) -> u64 {
+  pub fn to(&self) -> usize {
     self.to
   }
 
@@ -45,33 +53,83 @@ impl Edge {
   }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Graph {
-  nodes: HashMap<u64, Node>,
-  edges: HashMap<u64, Vec<Edge>>,
+  nodes: HashMap<usize, Node>,
+  edges: HashMap<usize, Edge>,
+  adjacency_list: HashMap<usize, Vec<usize>>,
+  next_node_id: usize,
+  next_edge_id: usize,
 }
 
 impl Graph {
   pub fn new() -> Self {
     Graph {
       nodes: HashMap::new(),
-      edges: HashMap::new()
+      edges: HashMap::new(),
+      adjacency_list: HashMap::new(),
+      next_node_id: 0,
+      next_edge_id: 0,
     }
   }
 
-  pub fn nodes(&self) -> &HashMap<u64, Node> {
+  pub fn nodes(&self) -> &HashMap<usize, Node> {
     &self.nodes
   }
 
-  pub fn edges(&self) -> &HashMap<u64, Vec<Edge>> {
+  pub fn edges(&self) -> &HashMap<usize, Edge> {
     &self.edges
   }
 
-  pub fn add_node(&mut self, id: u64, label: String, properties: HashMap<String, String>) {
-    self.nodes.insert(id, Node { id, label, properties });
+  pub fn next_node_id(&self) -> usize {
+    self.next_node_id
   }
 
-  pub fn add_edge(&mut self, from: u64, to: u64, label: String, properties: HashMap<String, String>) {
-    let edge = Edge { from, to, label, properties };
-    self.edges.entry(from).or_insert(Vec::new()).push(edge);
+  pub fn next_edge_id(&self) -> usize {
+    self.next_edge_id
+  }
+
+  pub fn adjacency_list(&self) -> &HashMap<usize, Vec<usize>> {
+    &self.adjacency_list
+  }
+
+  pub fn add_node(&mut self, label: String, properties: HashMap<String, String>) -> usize {
+    self.next_node_id += 1;
+    let node_id = self.next_node_id;
+
+    let node = Node {
+      id: node_id,
+      label,
+      properties,
+    };
+
+    self.nodes.insert(node_id, node);
+    node_id
+  }
+
+  pub fn add_edge(&mut self, from: usize, to: usize, label: String, properties: HashMap<String, String>) -> Result<usize, String> {
+    if !self.nodes.contains_key(&from) || !self.nodes.contains_key(&to) {
+      return Err("Source or target node does not exist".to_string());
+    }
+
+    self.next_edge_id += 1;
+    let edge_id = self.next_edge_id;
+
+    let edge = Edge {
+      id: edge_id,
+      from,
+      to,
+      label,
+      properties,
+    };
+
+    self.edges.insert(edge_id, edge);
+
+    self.adjacency_list
+      .entry(from)
+      .or_insert_with(Vec::new)
+      .push(to);
+
+    Ok(edge_id)
   }
 }
