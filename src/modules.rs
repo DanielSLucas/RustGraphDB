@@ -12,6 +12,7 @@ pub mod persistence;
 // - buscar por padrões padrões ou subgrafos
 // - funções de grafos como encontrar vizinho, grau de um nó...
 pub mod query_engine;
+pub mod api;
 
 // deve permitir buscar Node ou Edges, por um index, tornando a busca mais rápida
 // pub mod index;
