@@ -10,14 +10,16 @@ use self::edge::Edge;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Graph {
+  name: String,
   nodes: HashMap<usize, Node>,
   edges: HashMap<usize, Edge>,
   adjacency_list: HashMap<usize, Vec<usize>>
 }
 
 impl Graph {
-  pub fn new() -> Self {
+  pub fn new(name: String) -> Self {
     Self {
+      name,
       nodes: HashMap::new(),
       edges: HashMap::new(),
       adjacency_list: HashMap::new()
@@ -25,6 +27,10 @@ impl Graph {
   }
 
   // GETTERS
+  pub fn name(&self) -> &String {
+    &self.name
+  }
+
   pub fn nodes(&self) -> &HashMap<usize, Node> {
     &self.nodes
   }
