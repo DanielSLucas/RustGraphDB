@@ -12,14 +12,17 @@ impl Graph {
 
     while let Some(node_id) = queue.pop_front() {
       order.push(node_id);
-      for edge in self.edges.values() {
-        if edge.from == node_id && !visited.contains(&edge.to) {
-          visited.insert(edge.to);
-          queue.push_back(edge.to);
+
+      if let Some(neighbors) = self.adjacency_list.get(&node_id) {
+        for &adjacent_id in neighbors {
+          if !visited.contains(&adjacent_id) {
+            visited.insert(adjacent_id);
+            queue.push_back(adjacent_id);
+          }
         }
       }
     }
-    
+
     order
   }
 

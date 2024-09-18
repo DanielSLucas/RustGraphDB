@@ -1,5 +1,5 @@
-use api::cli::run_cli;
-use api::rest::run_server;
+use graphdb::lib::api::cli::run_cli;
+use graphdb::lib::api::rest::run_server;
 use std::env;
 
 #[actix_web::main]
