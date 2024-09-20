@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 async fn list_graphs(storage_manager: web::Data<Arc<Mutex<StorageManager>>>) -> impl Responder {
   let storage_manager = storage_manager.lock().unwrap();
-  let graphs = storage_manager.list_graphs();
+  let graphs = storage_manager.get_graph_names();
   HttpResponse::Ok().json(graphs)
 }
 

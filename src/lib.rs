@@ -4,4 +4,5 @@ pub mod lib {
   pub mod query;
   pub mod api;
   pub mod auth;
+  pub mod utils;
 }

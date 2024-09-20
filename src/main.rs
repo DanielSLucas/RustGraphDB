@@ -1,6 +1,7 @@
 use graphdb::lib::api::cli::run_cli;
 use graphdb::lib::api::rest::run_server;
 use graphdb::lib::storage::StorageManager;
+use graphdb::lib::utils::logger::log_info;
 use std::env;
 use std::sync::{Arc, Mutex};
 use ctrlc;
@@ -14,7 +15,7 @@ async fn main() -> std::io::Result<()> {
     // Set up signal handling for graceful shutdown
     let storage_manager_clone = Arc::clone(&storage_manager);
     ctrlc::set_handler(move || {
-        println!("\nGraceful shutdown initiated. Saving graphs...");
+        log_info("\nGraceful shutdown initiated. Saving graphs...");
         let storage_manager = storage_manager_clone.lock().unwrap();
         storage_manager.save_all_graphs();
         std::process::exit(0);
