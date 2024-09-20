@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use crate::lib::storage::StorageManager;
-use crate::lib::graph::{Graph, node::Node, edge::Edge};
+use crate::lib::services::graph_service::GraphService;
 use crate::lib::utils::logger::{log_info, log_error};
 
 #[derive(Debug)]
@@ -30,6 +30,8 @@ enum Command {
 }
 
 pub fn run_cli(storage_manager: Arc<Mutex<StorageManager>>) {
+  let graph_service = GraphService::new(storage_manager);
+
   loop {
     print!("> ");
     io::stdout().flush().unwrap();
@@ -42,15 +44,26 @@ pub fn run_cli(storage_manager: Arc<Mutex<StorageManager>>) {
     match command {
       Command::Exit => {
         log_info("Exiting...");
-        let storage_manager = storage_manager.lock().unwrap();
-        storage_manager.save_all_graphs();
+        // TODO - Tem que salvar os grafos antes de sair aqui na api REST.
+        // Assuming storage_manager is saved elsewhere
         break;
       }
       Command::CreateGraph { name } => {
-        handle_create_graph(&storage_manager, name);
+        match graph_service.create_graph(name.clone()) {
+          Ok(_) => log_info(&format!("Graph '{}' created.", name)),
+          Err(e) => log_error(&format!("{:?}", e)),
+        }
       }
       Command::ListGraphs => {
-        handle_list_graphs(&storage_manager);
+        match graph_service.list_graphs() {
+          Ok(graphs) => {
+            log_info("Graphs:");
+            for name in graphs {
+              log_info(&format!("- {}", name));
+            }
+          }
+          Err(e) => log_error(&format!("{:?}", e)),
+        }
       }
       Command::AddNode {
         graph_name,
@@ -58,23 +71,49 @@ pub fn run_cli(storage_manager: Arc<Mutex<StorageManager>>) {
         label,
         properties,
       } => {
-        handle_add_node(&storage_manager, graph_name, node_id, label, properties);
+        match graph_service.add_node(graph_name.clone(), node_id, label.clone(), properties) {
+          Ok(_) => log_info(&format!("Node {} added to graph '{}'.", node_id, graph_name)),
+          Err(e) => log_error(&format!("{:?}", e)),
+        }
       }
       Command::AddEdge {
-        graph_name,
-        edge_id,
-        from,
-        to,
-        label,
-        properties,
+          graph_name,
+          edge_id,
+          from,
+          to,
+          label,
+          properties,
       } => {
-        handle_add_edge(&storage_manager, graph_name, edge_id, from, to, label, properties);
+        match graph_service.add_edge(graph_name.clone(), edge_id, from, to, label.clone(), properties) {
+          Ok(_) => log_info(&format!("Edge {} added to graph '{}'.", edge_id, graph_name)),
+          Err(e) => log_error(&format!("{:?}", e)),
+        }
       }
       Command::PrintGraphAdjacency { graph_name } => {
-        handle_print_graph_adjacency(&storage_manager, graph_name);
+        match graph_service.get_graph_adjacency(graph_name.clone()) {
+          Ok(adjacency_list) => {
+            log_info(&format!("Adjacency List for graph '{}':", graph_name));
+            for (node_id, neighbors) in adjacency_list {
+              let neighbor_str: Vec<String> = neighbors.iter().map(|id| id.to_string()).collect();
+              log_info(&format!("Node {}: [{}]", node_id, neighbor_str.join(", ")));
+            }
+          }
+          Err(e) => log_error(&format!("{:?}", e)),
+        }
       }
       Command::PrintGraphRelations { graph_name } => {
-        handle_print_graph_relations(&storage_manager, graph_name);
+        match graph_service.get_graph_relations(graph_name.clone()) {
+          Ok(relations) => {
+            log_info(&format!("Graph '{}' relations:", graph_name));
+            for (from_id, from_label, edge_label, to_id, to_label) in relations {
+              log_info(&format!(
+                "[#{}]{} --[{}]-> [#{}]{}",
+                from_id, from_label, edge_label, to_id, to_label
+              ));
+            }
+          }
+          Err(e) => log_error(&format!("{:?}", e)),
+        }
       }
       Command::Unknown => {
         log_error("Unknown command or incorrect arguments.");
@@ -200,134 +239,5 @@ fn parse_command(input: &str) -> Command {
       }
     }
     _ => Command::Unknown,
-  }
-}
-
-// Handler functions
-
-fn handle_create_graph(storage_manager: &Arc<Mutex<StorageManager>>, name: String) {
-  let mut manager = storage_manager.lock().unwrap();
-  if manager.get_graph(&name).is_some() {
-    log_error(&format!("Graph '{}' already exists.", name));
-  } else {
-    let graph = Graph::new(name.clone());
-    manager.add_graph(graph);
-    log_info(&format!("Graph '{}' created.", name));
-  }
-}
-
-fn handle_list_graphs(storage_manager: &Arc<Mutex<StorageManager>>) {
-  let manager = storage_manager.lock().unwrap();
-  let graph_names = manager.get_graph_names();
-  log_info("Graphs:");
-  for name in graph_names {
-    log_info(&format!("- {}", name));
-  }
-}
-
-fn handle_add_node(
-  storage_manager: &Arc<Mutex<StorageManager>>,
-  graph_name: String,
-  node_id: usize,
-  label: String,
-  properties: HashMap<String, String>,
-) {
-  let mut manager = storage_manager.lock().unwrap();
-  if let Some(graph) = manager.get_graph_mut(&graph_name) {
-    if graph.get_node(node_id).is_some() {
-      log_error(&format!(
-        "Node with ID {} already exists in graph '{}'.",
-        node_id, graph_name
-      ));
-    } else {
-      let node = Node::new(node_id, label, properties);
-      graph.add_node(node);
-      log_info(&format!("Node {} added to graph '{}'.", node_id, graph_name));
-    }
-  } else {
-    log_error(&format!("Graph '{}' not found.", graph_name));
-  }
-}
-
-fn handle_add_edge(
-  storage_manager: &Arc<Mutex<StorageManager>>,
-  graph_name: String,
-  edge_id: usize,
-  from: usize,
-  to: usize,
-  label: String,
-  properties: HashMap<String, String>,
-) {
-  let mut manager = storage_manager.lock().unwrap();
-  if let Some(graph) = manager.get_graph_mut(&graph_name) {
-    if graph.get_edge(edge_id).is_some() {
-      log_error(&format!(
-        "Edge with ID {} already exists in graph '{}'.",
-        edge_id, graph_name
-      ));
-    } else {
-      if graph.get_node(from).is_none() {
-        log_error(&format!(
-          "Node with ID {} does not exist in graph '{}'.",
-          from, graph_name
-        ));
-        return;
-      }
-      if graph.get_node(to).is_none() {
-        log_error(&format!(
-          "Node with ID {} does not exist in graph '{}'.",
-          to, graph_name
-        ));
-        return;
-      }
-      let edge = Edge::new(edge_id, label, from, to, properties);
-      graph.add_edge(edge);
-      log_info(&format!("Edge {} added to graph '{}'.", edge_id, graph_name));
-    }
-  } else {
-    log_error(&format!("Graph '{}' not found.", graph_name));
-  }
-}
-
-fn handle_print_graph_adjacency(
-  storage_manager: &Arc<Mutex<StorageManager>>,
-  graph_name: String,
-) {
-  let manager = storage_manager.lock().unwrap();
-  if let Some(graph) = manager.get_graph(&graph_name) {
-    log_info(&format!("Adjacency List for graph '{}':", graph_name));
-    for (node_id, neighbors) in graph.adjacency_list() {
-      let neighbor_str: Vec<String> = neighbors.iter().map(|id| id.to_string()).collect();
-      log_info(&format!("Node {}: [{}]", node_id, neighbor_str.join(", ")));
-    }
-  } else {
-    log_error(&format!("Graph '{}' not found.", graph_name));
-  }
-}
-
-fn handle_print_graph_relations(
-  storage_manager: &Arc<Mutex<StorageManager>>,
-  graph_name: String,
-) {
-  let manager = storage_manager.lock().unwrap();
-  
-  if let Some(graph) = manager.get_graph(&graph_name) {
-    log_info(&format!("Graph '{}' relations:", graph_name));
-    
-    for edge in graph.edges().values() {
-      let from_node = graph.get_node(edge.from).unwrap();
-      let to_node = graph.get_node(edge.to).unwrap();
-      
-      log_info(&format!(
-        "[#{}]{} --[{}]-> [#{}]{}",
-        from_node.id,
-        from_node.label,
-        edge.label,
-        to_node.id,
-        to_node.label
-      ));
-    }
-  } else {
-    log_error(&format!("Graph '{}' not found.", graph_name));
   }
 }
