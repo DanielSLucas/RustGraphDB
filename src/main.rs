@@ -1,4 +1,3 @@
-use graphdb::lib::api::cli::run_cli;
 use graphdb::lib::api::rest::run_server;
 use graphdb::lib::storage::StorageManager;
 use graphdb::lib::utils::logger::log_info;
@@ -21,14 +20,7 @@ async fn main() -> std::io::Result<()> {
         std::process::exit(0);
     }).expect("Error setting Ctrl-C handler");
 
-    // Pass the storage_manager to API modules as needed
-    let args: Vec<String> = env::args().collect();
-
-    if args.contains(&"--cli".to_string()) {
-        run_cli(storage_manager);
-    } else {
-        run_server(storage_manager).await?;
-    }
+    run_server(storage_manager).await?;
 
     Ok(())
 }

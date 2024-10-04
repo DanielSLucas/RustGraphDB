@@ -19,7 +19,7 @@ pub async fn run_server(storage_manager: Arc<Mutex<StorageManager>>) -> std::io:
       .route("/graphs/{graph_name}/adjacency", web::get().to(get_graph_adjacency))
       .route("/graphs/{graph_name}/relations", web::get().to(get_graph_relations))
   })
-    .bind("127.0.0.1:8080")?
+    .bind("localhost:8080")?
     .run()
     .await
 }
