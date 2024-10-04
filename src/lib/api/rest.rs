@@ -148,32 +148,32 @@ async fn add_edge(
   }
 }
 
-#[derive(Serialize)]
+#[derive(serde::Serialize)] // Certifique-se de que a estrutura é serializável
 struct GraphAdjacency {
-  adjacency_list: HashMap<usize, Vec<usize>>,
+    adjacency_list: HashMap<usize, Vec<usize>>,
 }
 
 async fn get_graph_adjacency(
-  graph_service: web::Data<GraphService>,
-  graph_name: web::Path<String>,
+    graph_service: web::Data<GraphService>,
+    graph_name: web::Path<String>,
 ) -> impl Responder {
-  match graph_service.get_graph_adjacency(graph_name.clone()) {
-    Ok(adjacency_list) => {
-      log_info(&format!(
-        "Retrieved adjacency list for graph '{}' via REST API.",
-        graph_name
-      ));
-      HttpResponse::Ok().json(GraphAdjacency { adjacency_list })
+    match graph_service.get_graph_adjacency(graph_name.clone()) {
+        Ok(adjacency_list) => {
+            log_info(&format!(
+                "Retrieved adjacency list for graph '{}' via REST API.",
+                graph_name
+            ));
+            HttpResponse::Ok().json(GraphAdjacency { adjacency_list })
+        }
+        Err(GraphError::GraphNotFound(_)) => {
+            log_error(&format!("Graph '{}' not found.", graph_name));
+            HttpResponse::BadRequest().body("Graph not found.")
+        }
+        Err(e) => {
+            log_error(&format!("Error retrieving graph adjacency for '{}': {:?}", graph_name, e));
+            HttpResponse::InternalServerError().body("Internal Server Error")
+        }
     }
-    Err(GraphError::GraphNotFound(_)) => {
-      log_error(&format!("Graph '{}' not found.", graph_name));
-      HttpResponse::BadRequest().body("Graph not found.")
-    }
-    Err(e) => {
-      log_error(&format!("{:?}", e));
-      HttpResponse::InternalServerError().body("Internal Server Error")
-    }
-  }
 }
 
 #[derive(Serialize)]
@@ -206,7 +206,16 @@ async fn get_graph_relations(
           to_node_label: to_label,
         })
       .collect();
-
+    /*for relation in &response {
+      println!(
+          "[#{}]{} --[{}]-> [#{}]{}",
+          relation.from_node_id,
+          relation.from_node_label,
+          relation.edge_label,
+          relation.to_node_id,
+          relation.to_node_label
+      );
+  }*/
       HttpResponse::Ok().json(response)
     }
     Err(GraphError::GraphNotFound(_)) => {
