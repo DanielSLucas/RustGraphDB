@@ -5,13 +5,14 @@ pub mod graph;
 pub mod graph_utils; 
 
 // deve implementar uma maneira de persistir os grafos (em memória ou disco)
-// pub mod storage;
+pub mod persistence;
 
 // deve implementar uma interface para:
 // - fazer buscas (bfd, dfs, Dijkstra...)
 // - buscar por padrões padrões ou subgrafos
 // - funções de grafos como encontrar vizinho, grau de um nó...
-// pub mod query_engine;
+pub mod query_engine;
+pub mod api;
 
 // deve permitir buscar Node ou Edges, por um index, tornando a busca mais rápida
 // pub mod index;

@@ -1,0 +1,80 @@
+{
+  "nodes": {
+    "5": {
+      "id": 5,
+      "label": "Vitor Freire",
+      "properties": {}
+    },
+    "6": {
+      "id": 6,
+      "label": "Alice",
+      "properties": {}
+    },
+    "4": {
+      "id": 4,
+      "label": "Daniel",
+      "properties": {}
+    },
+    "1": {
+      "id": 1,
+      "label": "Daniel",
+      "properties": {}
+    },
+    "3": {
+      "id": 3,
+      "label": "Alice",
+      "properties": {}
+    },
+    "2": {
+      "id": 2,
+      "label": "Vitor Freire",
+      "properties": {}
+    }
+  },
+  "edges": {
+    "6": {
+      "id": 6,
+      "from": 5,
+      "to": 6,
+      "label": "neighbor of",
+      "properties": {}
+    },
+    "3": {
+      "id": 3,
+      "from": 2,
+      "to": 3,
+      "label": "neighbor of",
+      "properties": {}
+    },
+    "2": {
+      "id": 2,
+      "from": 1,
+      "to": 3,
+      "label": "colleague of",
+      "properties": {}
+    },
+    "1": {
+      "id": 1,
+      "from": 1,
+      "to": 2,
+      "label": "friends with",
+      "properties": {}
+    },
+    "5": {
+      "id": 5,
+      "from": 4,
+      "to": 6,
+      "label": "colleague of",
+      "properties": {}
+    },
+    "4": {
+      "id": 4,
+      "from": 4,
+      "to": 5,
+      "label": "friends with",
+      "properties": {}
+    }
+  },
+  "next_node_id": 6,
+  "next_edge_id": 6
+}

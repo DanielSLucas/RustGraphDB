@@ -1,23 +1,34 @@
+use std::error::Error;
+use std::collections::HashMap;
+
 mod modules;
 
 use modules::graph::Graph;
-use modules::graph_utils::{print_adjacency_list, print_node_relationships};
-use std::collections::HashMap;
+use modules::persistence::{load_from_file, save_to_file};
+use modules::api::run_api;
 
-fn main() {
-    let mut graph: Graph = Graph::new();
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let mut graph = Graph::new();
 
-    graph.add_node(1, "Daniel".to_string(), HashMap::new());
-    graph.add_node(2, "Vitor Freire".to_string(), HashMap::new());
-    graph.add_node(3, "Alice".to_string(), HashMap::new());
+    // Adicionar alguns nós e arestas iniciais
+    let id1 = graph.add_node("Daniel".to_string(), HashMap::new());
+    let id2 = graph.add_node("Vitor Freire".to_string(), HashMap::new());
+    let id3 = graph.add_node("Alice".to_string(), HashMap::new());
 
-    graph.add_edge(1, 2, "friends with".to_string(), HashMap::from([("created_at".to_string(), "2023-10-03".to_string())]));
-    graph.add_edge(1, 3, "colleague of".to_string(), HashMap::new());
-    graph.add_edge(2, 3, "neighbor of".to_string(), HashMap::new());
+    graph.add_edge(id1, id2, "friends with".to_string(), HashMap::new())?;
+    graph.add_edge(id1, id3, "colleague of".to_string(), HashMap::new())?;
 
-    println!("Adjacency List:");
-    print_adjacency_list(&graph);
+    // Salvar o grafo em um arquivo
+    save_to_file(&graph, "graph.json")?;
 
-    println!("\nNode Relationships:");
-    print_node_relationships(&graph);
+    // Carregar o grafo de um arquivo
+    let loaded_graph = load_from_file("graph.json")?;
+
+    // Iniciar o servidor da API
+    run_api(loaded_graph).await?;
+
+    Ok(())
 }
+
+
