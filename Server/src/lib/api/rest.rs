@@ -18,6 +18,7 @@ pub async fn run_server(storage_manager: Arc<Mutex<StorageManager>>) -> std::io:
       .route("/graphs/{graph_name}/edges", web::post().to(add_edge))
       .route("/graphs/{graph_name}/adjacency", web::get().to(get_graph_adjacency))
       .route("/graphs/{graph_name}/relations", web::get().to(get_graph_relations))
+      .route("/graphs/{graph_name}/{method_search}/origin={origin}&goal={goal}", web::get().to(graph_search))
   })
     .bind("localhost:8080")?
     .run()
@@ -227,4 +228,43 @@ async fn get_graph_relations(
       HttpResponse::InternalServerError().body("Internal Server Error")
     }
   }
+}
+
+#[derive(serde::Serialize)]
+struct GraphPath {
+    path: Vec<usize>,
+}
+
+// Adapte a função para suportar diferentes métodos de busca
+async fn graph_search(
+    graph_service: web::Data<GraphService>,
+    path: web::Path<(String, String, usize, usize)>, // (graph_name, method_search, origin, goal)
+) -> impl Responder {
+    let (graph_name, method_search, origin, goal) = path.into_inner();
+
+    // Decide qual método de busca usar
+    let result = graph_service.search_path(graph_name.clone(), method_search.clone(), origin, goal);
+    
+    // Tratamento da resposta
+    match result {
+        Ok(path) => {
+            log_info(&format!(
+                "Path from {} to {} using {} in graph '{}' retrieved via REST API.",
+                origin, goal, method_search, graph_name
+            ));
+            HttpResponse::Ok().json(GraphPath { path })
+        }
+        Err(GraphError::GraphNotFound(_)) => {
+            log_error(&format!("Graph '{}' not found.", graph_name));
+            HttpResponse::BadRequest().body("Graph not found.")
+        }
+        Err(GraphError::NodeNotFound(node_id)) => {
+            log_error(&format!("Node '{}' not found in graph '{}'.", node_id, graph_name));
+            HttpResponse::BadRequest().body("Node not found.")
+        }
+        Err(e) => {
+            log_error(&format!("Error retrieving path: {:?}", e));
+            HttpResponse::InternalServerError().body("Internal Server Error")
+        }
+    }
 }
