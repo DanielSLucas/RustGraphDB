@@ -153,8 +153,15 @@ impl GraphService {
 
   // Métodos DFS e Dijkstra devem ser implementados da mesma forma
   pub fn dfs_path(&self, graph_name: String, origin: usize, goal: usize) -> GraphResult<Vec<usize>> {
-    // Implementação do DFS
-    unimplemented!()
+    let manager = self.storage_manager.lock().unwrap();
+
+    if let Some(graph) = manager.get_graph(&graph_name) {
+      // Implementação do algoritmo BFS para encontrar o caminho do origin ao goal
+      let path = graph.dfs(origin, goal); // Assumindo que você tenha uma função `bfs` no Graph
+      Ok(path)
+    } else {
+      Err(GraphError::GraphNotFound(graph_name))
+    }
   }
 
   pub fn dijkstra_path(&self, graph_name: String, origin: usize, goal: usize) -> GraphResult<Vec<usize>> {
