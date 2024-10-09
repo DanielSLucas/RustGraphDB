@@ -1,39 +1,9 @@
 use super::Graph;
-use rayon::prelude::*;
 use std::collections::{VecDeque, HashSet, HashMap, BinaryHeap};
 use std::cmp::Ordering;
 
 // Implementação de busca em largura (BFS)
 impl Graph {
-    pub fn bfs_parallel(&self, start_id: usize, end_id: usize) -> Vec<usize> {
-        let visited = Arc::new(Mutex::new(HashSet::new()));
-        let queue = Arc::new(Mutex::new(VecDeque::new()));
-        let parent_map = Arc::new(Mutex::new(HashMap::new())); // Para rastrear o caminho
-    
-        queue.lock().unwrap().push_back(start_id);
-        visited.lock().unwrap().insert(start_id);
-        parent_map.lock().unwrap().insert(start_id, None); // O nó inicial não tem pai
-    
-        while let Some(node_id) = queue.lock().unwrap().pop_front() {
-            if node_id == end_id {
-                return self.build_path(end_id, &parent_map.lock().unwrap());
-            }
-    
-            if let Some(neighbors) = self.adjacency_list.get(&node_id) {
-                neighbors.par_iter().for_each(|&adjacent_id| {
-                    let mut visited_guard = visited.lock().unwrap();
-                    if !visited_guard.contains(&adjacent_id) {
-                        visited_guard.insert(adjacent_id);
-                        queue.lock().unwrap().push_back(adjacent_id);
-                        parent_map.lock().unwrap().insert(adjacent_id, Some(node_id)); // Rastreia o pai do nó
-                    }
-                });
-            }
-        }
-    
-        Vec::new() // Retorna um vetor vazio se o destino não for encontrado
-    }
-
     pub fn bfs(&self, start_id: usize, end_id: usize) -> Vec<usize> {
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();

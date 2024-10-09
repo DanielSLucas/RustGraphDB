@@ -144,7 +144,7 @@ impl GraphService {
 
     if let Some(graph) = manager.get_graph(&graph_name) {
       // Implementação do algoritmo BFS para encontrar o caminho do origin ao goal
-      let path = graph.bfs_parallel(origin, goal); // Assumindo que você tenha uma função `bfs` no Graph
+      let path = graph.bfs(origin, goal); // Assumindo que você tenha uma função `bfs` no Graph
       Ok(path)
     } else {
       Err(GraphError::GraphNotFound(graph_name))
