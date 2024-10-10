@@ -167,5 +167,5 @@ impl GraphService {
   pub fn dijkstra_path(&self, graph_name: String, origin: usize, goal: usize) -> GraphResult<Vec<usize>> {
     // Implementação do Dijkstra
     unimplemented!()
-}
+  }
 }
