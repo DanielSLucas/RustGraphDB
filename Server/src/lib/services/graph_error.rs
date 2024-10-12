@@ -10,6 +10,7 @@ pub enum GraphError {
   EdgeAlreadyExists(usize),
   InvalidOperation(String),
   StorageError(String),
+  MethodNotSupported(String),
 }
 
 impl std::error::Error for GraphError {}
@@ -25,6 +26,7 @@ impl fmt::Display for GraphError {
       GraphError::EdgeAlreadyExists(id) => write!(f, "Edge with ID {} already exists.", id),
       GraphError::InvalidOperation(msg) => write!(f, "Invalid operation: {}", msg),
       GraphError::StorageError(msg) => write!(f, "Storage error: {}", msg),
+      GraphError::MethodNotSupported(msg) => write!(f, "Method {} not supported.", msg),
     }
   }
 }
