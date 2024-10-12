@@ -3,6 +3,9 @@ use crate::lib::storage::StorageManager;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+// Tamanho de grafo para rodar usando multi-threads
+const TAM_MIN_GRPAH: usize = 10;
+
 pub use super::graph_error::GraphError;
 
 pub type GraphResult<T> = Result<T, GraphError>;
@@ -150,7 +153,7 @@ impl GraphService {
   ) -> GraphResult<Vec<usize>> {
     let graph_arc = self.get_graph_locked(&graph_name).await?;
     let graph = graph_arc.lock().unwrap();
-    let path = graph.bfs(origin, goal);
+    let path = graph.bfs(origin, goal, TAM_MIN_GRPAH);
     Ok(path)
   }
 
