@@ -4,7 +4,7 @@ use actix_web::{get, post, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[get("/")]
+#[get("")]
 async fn list_graphs(graph_service: web::Data<GraphService>) -> impl Responder {
   match graph_service.list_graphs() {
     Ok(graphs) => {
@@ -23,7 +23,7 @@ struct CreateGraphRequest {
   name: String,
 }
 
-#[post("/")]
+#[post("")]
 async fn create_graph(
   graph_service: web::Data<GraphService>,
   request: web::Json<CreateGraphRequest>,
@@ -65,7 +65,10 @@ async fn add_node(
   let properties: HashMap<String, String> =
     request.properties.clone().unwrap_or_else(|| HashMap::new());
 
-  match graph_service.add_node(graph_name.clone(), node_id, label, properties).await {
+  match graph_service
+    .add_node(graph_name.clone(), node_id, label, properties)
+    .await
+  {
     Ok(_) => {
       log_info(&format!(
         "Node {} added to graph '{}' via REST API.",
@@ -114,7 +117,10 @@ async fn add_edge(
   let properties: HashMap<String, String> =
     request.properties.clone().unwrap_or_else(|| HashMap::new());
 
-  match graph_service.add_edge(graph_name.clone(), edge_id, from, to, label, properties).await {
+  match graph_service
+    .add_edge(graph_name.clone(), edge_id, from, to, label, properties)
+    .await
+  {
     Ok(_) => {
       log_info(&format!(
         "Edge {} added to graph '{}' via REST API.",
@@ -247,7 +253,9 @@ async fn graph_search(
   let origin = query.origin;
   let goal = query.goal;
 
-  let result = graph_service.search_path(graph_name.clone(), search_method.clone(), origin, goal).await;
+  let result = graph_service
+    .search_path(graph_name.clone(), search_method.clone(), origin, goal)
+    .await;
 
   match result {
     Ok(path) => {

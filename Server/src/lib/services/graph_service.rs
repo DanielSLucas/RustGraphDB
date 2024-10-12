@@ -168,9 +168,9 @@ impl GraphService {
 
   pub async fn dijkstra_path(
     &self,
-    graph_name: String,
-    origin: usize,
-    goal: usize,
+    _graph_name: String,
+    _origin: usize,
+    _goal: usize,
   ) -> GraphResult<Vec<usize>> {
     unimplemented!();
   }
