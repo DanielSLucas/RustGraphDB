@@ -1,2 +1,2 @@
-pub mod rest;
 mod handlers;
+pub mod rest;

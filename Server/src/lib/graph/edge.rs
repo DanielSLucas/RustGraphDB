@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Edge {
@@ -11,8 +11,20 @@ pub struct Edge {
 }
 
 impl Edge {
-  pub fn new(id: usize, label: String, from: usize, to: usize, properties: HashMap<String, String>) -> Self {
-    Self { id, label, from, to, properties }
+  pub fn new(
+    id: usize,
+    label: String,
+    from: usize,
+    to: usize,
+    properties: HashMap<String, String>,
+  ) -> Self {
+    Self {
+      id,
+      label,
+      from,
+      to,
+      properties,
+    }
   }
 
   // CRUD operations for Edge can be added here

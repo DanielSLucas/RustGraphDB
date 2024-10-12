@@ -1,19 +1,19 @@
-pub mod node;
 pub mod edge;
+pub mod node;
 pub mod traversal;
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-use self::node::Node;
 use self::edge::Edge;
+use self::node::Node;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Graph {
   name: String,
   nodes: HashMap<usize, Node>,
   edges: HashMap<usize, Edge>,
-  adjacency_list: HashMap<usize, Vec<usize>>
+  adjacency_list: HashMap<usize, Vec<usize>>,
 }
 
 impl Graph {
@@ -22,7 +22,7 @@ impl Graph {
       name,
       nodes: HashMap::new(),
       edges: HashMap::new(),
-      adjacency_list: HashMap::new()
+      adjacency_list: HashMap::new(),
     }
   }
 
@@ -65,7 +65,8 @@ impl Graph {
 
   // EDGES CRUD
   pub fn add_edge(&mut self, edge: Edge) {
-    self.adjacency_list
+    self
+      .adjacency_list
       .entry(edge.from)
       .or_insert_with(Vec::new)
       .push(edge.to);
