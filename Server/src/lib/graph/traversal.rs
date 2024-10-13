@@ -127,94 +127,107 @@ impl Graph {
 
         Vec::new() // Retorna um vetor vazio se o destino não for encontrado
     }
-
-    // Implementação de busca em profundidade (DFS) com multithreads
-    pub fn dfs(&self, start_id: usize, end_id: usize) -> Vec<usize> {
+    
+    pub fn dfs(&self, start_id: usize, end_id: usize, threshold: usize) -> Vec<usize> {
+        // Verifica o tamanho do grafo para decidir se usa multi-thread ou single-thread
+        if self.adjacency_list.len() >= threshold {
+            // Modo multi-thread
+            self.dfs_parallel(start_id, end_id)
+        } else {
+            // Modo single-thread
+            self.dfs_single_thread(start_id, end_id)
+        }
+    }
+    
+    // Função DFS com multithreading
+    fn dfs_parallel(&self, start_id: usize, end_id: usize) -> Vec<usize> {
         let visited = Arc::new(Mutex::new(HashSet::new()));
         let stack = Arc::new(Mutex::new(vec![start_id]));
         let parent_map = Arc::new(Mutex::new(HashMap::new())); // Para rastrear o caminho
 
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (tx, rx) = mpsc::channel();
 
-        // Clonando referências para passar para as threads
-        let visited_clone = Arc::clone(&visited);
-        let stack_clone = Arc::clone(&stack);
-        let parent_map_clone = Arc::clone(&parent_map);
-        let adjacency_list_clone = self.adjacency_list.clone();
+        let thread_count = num_cpus::get(); // Usar o número máximo de threads possíveis
+        let mut threads = vec![];
 
-        // Criando a thread principal
-        let main_thread = thread::spawn(move || {
-        while let Some(node_id) = {
-            let mut stack = stack_clone.lock().unwrap();
-            stack.pop()
-        } {
-            if node_id == end_id {
-            tx.send(Some(node_id)).unwrap();
-            return;
-            }
+        for _ in 0..thread_count {
+            // Clonando referências para passar para as threads
+            let visited_clone = Arc::clone(&visited);
+            let stack_clone = Arc::clone(&stack);
+            let parent_map_clone = Arc::clone(&parent_map);
+            let adjacency_list_clone = self.adjacency_list.clone();
+            let tx_clone = tx.clone();
 
-            if visited_clone.lock().unwrap().insert(node_id) {
-            let mut parent_map = parent_map_clone.lock().unwrap();
-            parent_map.insert(node_id, None); // O nó atual não tem pai ainda
-            if let Some(neighbors) = adjacency_list_clone.get(&node_id) {
-                for &adjacent_id in neighbors {
-                if !visited_clone.lock().unwrap().contains(&adjacent_id) {
+            let handle = thread::spawn(move || {
+                while let Some(node_id) = {
                     let mut stack = stack_clone.lock().unwrap();
-                    stack.push(adjacent_id);
-                    parent_map.insert(adjacent_id, Some(node_id)); // Rastreia o pai do nó
-                }
-                }
-            }
-            }
-        }
-        tx.send(None).unwrap();
-        });
+                    stack.pop()
+                } {
+                    if node_id == end_id {
+                        tx_clone.send(Some(node_id)).unwrap();
+                        return;
+                    }
 
-        // Aguardando a thread principal terminar
-        main_thread.join().unwrap();
+                    if visited_clone.lock().unwrap().insert(node_id) {
+                        let mut parent_map = parent_map_clone.lock().unwrap();
+                        parent_map.insert(node_id, None); // O nó atual não tem pai ainda
+
+                        if let Some(neighbors) = adjacency_list_clone.get(&node_id) {
+                            for &adjacent_id in neighbors {
+                                if !visited_clone.lock().unwrap().contains(&adjacent_id) {
+                                    let mut stack = stack_clone.lock().unwrap();
+                                    stack.push(adjacent_id);
+                                    parent_map.insert(adjacent_id, Some(node_id)); // Rastreia o pai do nó
+                                }
+                            }
+                        }
+                    }
+                }
+                tx_clone.send(None).unwrap();
+            });
+
+            threads.push(handle);
+        }
+
+        // Aguardando as threads terminarem
+        for thread in threads {
+            thread.join().unwrap();
+        }
 
         // Construindo o caminho final
         if let Some(end_id) = rx.recv().unwrap() {
-        self.build_path(end_id, &parent_map.lock().unwrap())
+            self.build_path(end_id, &parent_map.lock().unwrap())
         } else {
-        Vec::new() // Retorna um vetor vazio se o destino não for encontrado
+            Vec::new() // Retorna um vetor vazio se o destino não for encontrado
         }
     }
 
-  // Implementação da busca de Dijkstra
-  /*pub fn dijkstra(&self, start_id: usize, end_id: usize) -> Vec<usize> {
-      let mut dist = HashMap::new();
-      let mut parent_map = HashMap::new();
-      let mut heap = BinaryHeap::new();
+    // Função DFS simples (single-thread)
+    fn dfs_single_thread(&self, start_id: usize, end_id: usize) -> Vec<usize> {
+        let mut visited = HashSet::new();
+        let mut stack = vec![start_id];
+        let mut parent_map = HashMap::new(); // Para rastrear o caminho
 
-      dist.insert(start_id, 0);
-      heap.push(State { cost: 0, node_id: start_id });
+        while let Some(node_id) = stack.pop() {
+            if node_id == end_id {
+                return self.build_path(end_id, &parent_map);
+            }
 
-      while let Some(State { cost, node_id }) = heap.pop() {
-          // Se já temos uma distância menor, ignoramos
-          if cost > *dist.get(&node_id).unwrap_or(&usize::MAX) {
-              continue;
-          }
+            if visited.insert(node_id) {
+                parent_map.insert(node_id, None); // O nó atual não tem pai ainda
 
-          if node_id == end_id {
-              return self.build_path(end_id, &parent_map);
-          }
-
-          if let Some(neighbors) = self.adjacency_list.get(&node_id) {
-              for &(neighbor_id, weight) in neighbors {
-                  let next_cost = cost + weight;
-
-                  if next_cost < *dist.get(&neighbor_id).unwrap_or(&usize::MAX) {
-                      dist.insert(neighbor_id, next_cost);
-                      parent_map.insert(neighbor_id, Some(node_id));
-                      heap.push(State { cost: next_cost, node_id: neighbor_id });
-                  }
-              }
-          }
-      }
-
-      Vec::new() // Retorna um vetor vazio se o destino não for encontrado
-  }*/
+                if let Some(neighbors) = self.adjacency_list.get(&node_id) {
+                    for &adjacent_id in neighbors {
+                        if !visited.contains(&adjacent_id) {
+                            stack.push(adjacent_id);
+                            parent_map.insert(adjacent_id, Some(node_id)); // Rastreia o pai do nó
+                        }
+                    }
+                }
+            }
+        }
+        Vec::new() // Retorna um vetor vazio se o destino não for encontrado
+    }
 }
 
 // Estrutura auxiliar para Dijkstra

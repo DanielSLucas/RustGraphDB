@@ -165,7 +165,7 @@ impl GraphService {
   ) -> GraphResult<Vec<usize>> {
     let graph_arc = self.get_graph_locked(&graph_name).await?;
     let graph = graph_arc.lock().unwrap();
-    let path = graph.dfs(origin, goal);
+    let path = graph.dfs(origin, goal, TAM_MIN_GRPAH);
     Ok(path)
   }
 
