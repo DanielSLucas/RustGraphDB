@@ -17,6 +17,33 @@ impl GraphService {
         let client = self.client.clone();
         let base_url = self.base_url.clone();
 
+        // Nome do grafo a ser criado
+        let graph_name = "some_graph";
+
+        // URL para criar o grafo
+        let graph_url = format!("{}/graphs", base_url);
+        
+        // Criar o grafo antes de adicionar nós
+        let graph_data = serde_json::json!({ "name": graph_name });
+        let create_graph_res = client.post(&graph_url)
+            .json(&graph_data)
+            .send()
+            .await;
+
+        match create_graph_res {
+            Ok(response) if response.status().is_success() => {
+                println!("Graph '{}' created successfully.", graph_name);
+            }
+            Ok(response) => {
+                eprintln!("Failed to create graph: {:?}", response.status());
+                return; // Retorna se a criação do grafo falhar
+            }
+            Err(e) => {
+                eprintln!("Error creating graph: {}", e);
+                return; // Retorna se houver um erro na requisição
+            }
+        }
+
         // Processa cada registro em threads paralelas, enviando node_id e label (Street)
         let tasks: Vec<_> = data.into_iter().enumerate().map(|(index, record)| {
             let client = client.clone();
@@ -24,49 +51,40 @@ impl GraphService {
             let node_id = index;  // node_id é o índice do registro
             let label = record.Street.clone();  // label é o valor de Street
 
-            /*let graph_name = "some_graph";              
+            // URL para adicionar um nó
+            let node_url = format!("{}/graphs/{}/nodes", base_url, graph_name);
 
-            let node_url = format!("{}/graphs", base_url);
-            let res = client.post(&node_url)
-                .json(&graph_name)
-                .send();*/
-
+            // Criação de uma task assíncrona para adicionar o nó
             task::spawn(async move {
-                // Envia dados para "/graphs/{graph_name}/nodes" com node_id e label
-                let graph_name = "some_graph";  // Substitua conforme necessário
                 let node_data = serde_json::json!({
                     "node_id": node_id,
-                    "label": label,
-                    "properties": {
-                        "len": "52" // Propriedade padrão
-                    }
+                    "label": label
                 });
-                
-                println!("Node data to send: {}", node_data);                
 
-                let node_url = format!("{}/graphs/{}/nodes", base_url, graph_name);
+                println!("Node data to send: {}", node_data);
+
                 let res = client.post(&node_url)
                     .json(&node_data)
                     .send()
                     .await;
 
                 match res {
-                    Ok(response) => {
+                    Ok(response) if response.status().is_success() => {
                         println!("Node added (ID: {}, Label: {}): {:?}", node_id, label, response.status());
                     }
+                    Ok(response) => {
+                        eprintln!("Failed to add node (ID: {}, Label: {}): {:?}", node_id, label, response.status());
+                    }
                     Err(e) => {
-                        eprintln!("Failed to add node: {}", e);
+                        eprintln!("Failed to add node (ID: {}, Label: {}): {}", node_id, label, e);
                     }
                 }
-
-                // Outros endpoints como edges, adjacency, relations podem seguir o mesmo padrão
             })
         }).collect();
 
-        // Aguarda todas as threads terminarem
+        // Aguarda todas as tasks terminarem
         for task in tasks {
             let _ = task.await;
         }
     }
 }
-
