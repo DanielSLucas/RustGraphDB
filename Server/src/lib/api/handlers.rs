@@ -55,44 +55,51 @@ struct AddNodeRequest {
 
 #[post("/{graph_name}/nodes")]
 async fn add_node(
-  graph_service: web::Data<GraphService>,
-  path: web::Path<String>,
-  request: web::Json<AddNodeRequest>,
+    graph_service: web::Data<GraphService>,
+    path: web::Path<String>,
+    request: web::Json<AddNodeRequest>,
 ) -> impl Responder {
-  let graph_name = path.clone();
-  let node_id = request.node_id;
-  let label = request.label.clone();
-  let properties: HashMap<String, String> =
-    request.properties.clone().unwrap_or_else(|| HashMap::new());
+    // Logando os dados recebidos do JSON
+    println!(
+        "Recebido JSON: {{ node_id: {}, label: '{}', properties: {:?} }}",
+        request.node_id, request.label, request.properties
+    );
+    
+    let graph_name = path.clone();
+    let node_id = request.node_id;
+    let label = request.label.clone();
+    let properties: HashMap<String, String> =
+        request.properties.clone().unwrap_or_else(|| HashMap::new());
 
-  match graph_service
-    .add_node(graph_name.clone(), node_id, label, properties)
-    .await
-  {
-    Ok(_) => {
-      log_info(&format!(
-        "Node {} added to graph '{}' via REST API.",
-        node_id, graph_name
-      ));
-      HttpResponse::Ok().body(format!("Node {} added to graph '{}'.", node_id, graph_name))
+    match graph_service
+        .add_node(graph_name.clone(), node_id, label, properties)
+        .await
+    {
+        Ok(_) => {
+            log_info(&format!(
+                "Node {} added to graph '{}' via REST API.",
+                node_id, graph_name
+            ));
+            HttpResponse::Ok().body(format!("Node {} added to graph '{}'.", node_id, graph_name))
+        }
+        Err(GraphError::NodeAlreadyExists(_)) => {
+            log_error(&format!(
+                "Node with ID {} already exists in graph '{}'.",
+                node_id, graph_name
+            ));
+            HttpResponse::BadRequest().body("Node already exists.")
+        }
+        Err(GraphError::GraphNotFound(_)) => {
+            log_error(&format!("Graph '{}' not found.", graph_name));
+            HttpResponse::BadRequest().body("Graph not found.")
+        }
+        Err(e) => {
+            log_error(&format!("{:?}", e));
+            HttpResponse::InternalServerError().body("Internal Server Error")
+        }
     }
-    Err(GraphError::NodeAlreadyExists(_)) => {
-      log_error(&format!(
-        "Node with ID {} already exists in graph '{}'.",
-        node_id, graph_name
-      ));
-      HttpResponse::BadRequest().body("Node already exists.")
-    }
-    Err(GraphError::GraphNotFound(_)) => {
-      log_error(&format!("Graph '{}' not found.", graph_name));
-      HttpResponse::BadRequest().body("Graph not found.")
-    }
-    Err(e) => {
-      log_error(&format!("{:?}", e));
-      HttpResponse::InternalServerError().body("Internal Server Error")
-    }
-  }
 }
+
 
 #[derive(Deserialize)]
 struct AddEdgeRequest {
