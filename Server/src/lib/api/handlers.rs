@@ -58,13 +58,7 @@ async fn add_node(
     graph_service: web::Data<GraphService>,
     path: web::Path<String>,
     request: web::Json<AddNodeRequest>,
-) -> impl Responder {
-    // Logando os dados recebidos do JSON
-    println!(
-        "Recebido JSON: {{ node_id: {}, label: '{}', properties: {:?} }}",
-        request.node_id, request.label, request.properties
-    );
-    
+) -> impl Responder {    
     let graph_name = path.clone();
     let node_id = request.node_id;
     let label = request.label.clone();

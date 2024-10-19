@@ -1,8 +1,9 @@
 use reqwest::Client;
 use serde::Deserialize;
-use std::sync::Arc;
+use std::{fmt::format, sync::Arc};
 use std::error::Error;
 use tokio::task;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::lib::data::reader::RoadData;
 
@@ -17,8 +18,15 @@ impl GraphService {
         let client = self.client.clone();
         let base_url = self.base_url.clone();
 
+        let start = Instant::now();
+        let time_now = SystemTime::now();
+        // Convertendo para segundos desde a Unix Epoch
+        let since_the_epoch = time_now.duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_secs();
+
         // Nome do grafo a ser criado
-        let graph_name = "some_graph";
+        let graph_name = format!("some_graph_{}", since_the_epoch);
 
         // URL para criar o grafo
         let graph_url = format!("{}/graphs", base_url);
@@ -32,14 +40,14 @@ impl GraphService {
 
         match create_graph_res {
             Ok(response) if response.status().is_success() => {
-                println!("Graph '{}' created successfully.", graph_name);
+                //println!("Graph '{}' created successfully.", graph_name);
             }
             Ok(response) => {
-                eprintln!("Failed to create graph: {:?}", response.status());
+                //eprintln!("Failed to create graph: {:?}", response.status());
                 return; // Retorna se a criação do grafo falhar
             }
             Err(e) => {
-                eprintln!("Error creating graph: {}", e);
+                //eprintln!("Error creating graph: {}", e);
                 return; // Retorna se houver um erro na requisição
             }
         }
@@ -61,7 +69,7 @@ impl GraphService {
                     "label": label
                 });
 
-                println!("Node data to send: {}", node_data);
+                //println!("Node data to send: {}", node_data);
 
                 let res = client.post(&node_url)
                     .json(&node_data)
@@ -86,5 +94,9 @@ impl GraphService {
         for task in tasks {
             let _ = task.await;
         }
+
+        let finish = Instant::now();
+
+        println!("Tempo de execução em ms: {:?}", finish.duration_since(start));
     }
 }
