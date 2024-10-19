@@ -11,13 +11,16 @@ pub struct RoadData {
     pub To: String,
     pub Distance_km: f64,
     pub Travel_time_min: f64,
-    pub Congestion_level: String,
+    pub Congestion_level: f64,
 }
 
-pub struct CSVReader;
+pub struct CSVReader {
+    records: Vec<RoadData>, // Armazena os registros lidos
+}
 
 impl CSVReader {
-    pub async fn read_csv(file_path: &str) -> Result<Vec<RoadData>, Box<dyn Error>> {
+    // Lê o arquivo CSV e armazena os registros
+    pub async fn read_csv(file_path: &str) -> Result<Self, Box<dyn Error>> {
         let file = tokio::fs::File::open(file_path).await?;
         let mut rdr = csv::Reader::from_reader(file.into_std().await);
         let mut records = Vec::new();
@@ -27,6 +30,11 @@ impl CSVReader {
             records.push(record);
         }
 
-        Ok(records)
+        Ok(CSVReader { records })
+    }
+
+    // Retorna um iterador sobre os registros
+    pub fn iter(&self) -> std::slice::Iter<RoadData> {
+        self.records.iter()
     }
 }
