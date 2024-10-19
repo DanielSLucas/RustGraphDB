@@ -9,7 +9,7 @@ use seedDataFrame::lib::api::rest::GraphService;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let file_path = "traffic_navigation_dataset.csv";  // Substitua com o caminho para o seu arquivo CSV
+    let file_path = "traffic_navigation_dataset copy.csv";  // Substitua com o caminho para o seu arquivo CSV
 
     // Lê os dados do CSV de forma assíncrona
     let records = CSVReader::read_csv(file_path).await?;

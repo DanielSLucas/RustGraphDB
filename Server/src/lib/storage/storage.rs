@@ -9,9 +9,19 @@ use tokio::io::AsyncWriteExt;
 
 use crate::lib::graph::Graph;
 
+#[derive(Debug)]
 pub struct StorageManager {
   graphs: RwLock<HashMap<String, Arc<Mutex<Graph>>>>,
   storage_dir: PathBuf,
+}
+
+impl Clone for StorageManager {
+  fn clone(&self) -> Self {
+    Self {
+      graphs: RwLock::new(self.graphs.read().unwrap().clone()),
+      storage_dir: self.storage_dir.clone(),
+    }
+  }
 }
 
 impl StorageManager {
@@ -93,7 +103,7 @@ impl StorageManager {
       .filter_map(|path| {
         path
           .file_stem() // remove o .json do nome
-          .and_then(OsStr::to_str) 
+          .and_then(OsStr::to_str)
           .map(|name| name.to_string())
       })
       .collect()
@@ -112,5 +122,20 @@ impl StorageManager {
         }
       })
       .collect()
+  }
+
+  pub fn save_all_graphs_sync(&self) -> std::io::Result<()> {
+    let graphs = self.graphs.read().unwrap();
+
+    for (name, graph_arc) in graphs.iter() {
+      let graph = graph_arc.lock().unwrap();
+      let data = serde_json::to_string_pretty(&*graph).expect("Failed to serialize graph");
+      let filename = format!("{}.json", name);
+      let filepath = self.storage_dir.join(filename);
+
+      fs::write(filepath, data.as_bytes())?;
+    }
+
+    Ok(())
   }
 }

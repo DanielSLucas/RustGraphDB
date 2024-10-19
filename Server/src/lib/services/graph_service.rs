@@ -62,7 +62,7 @@ impl GraphService {
       graph.add_node(node);
     }
 
-    self.save_graph_changes(&graph_name).await?;
+    // self.save_graph_changes(&graph_name).await?;
     Ok(())
   }
 
@@ -93,7 +93,7 @@ impl GraphService {
       graph.add_edge(edge);
     }
 
-    self.save_graph_changes(&graph_name).await?;
+    // self.save_graph_changes(&graph_name).await?;
     Ok(())
   }
 

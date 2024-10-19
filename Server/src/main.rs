@@ -12,6 +12,7 @@ async fn main() -> std::io::Result<()> {
   let storage_dir = "storage";
   let storage_manager = Arc::new(StorageManager::new(storage_dir));
 
+  let storage_manager_clone = Arc::clone(&storage_manager);
   task::spawn_blocking(move || {
     let mut signals = Signals::new(&[SIGINT, SIGTERM]).unwrap();
     for sig in signals.forever() {
@@ -19,6 +20,10 @@ async fn main() -> std::io::Result<()> {
         SIGINT | SIGTERM => {
           println!("Received SIGINT or SIGTERM, shutting down...");
           log_info("\nGraceful shutdown initiated. Saving graphs...");
+
+          storage_manager_clone.save_all_graphs_sync()
+            .expect("Failed to save graphs");
+
           std::process::exit(0);
         }
         _ => unreachable!(),

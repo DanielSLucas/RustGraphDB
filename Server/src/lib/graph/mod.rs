@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use self::edge::Edge;
 use self::node::Node;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
   name: String,
   nodes: HashMap<usize, Node>,
