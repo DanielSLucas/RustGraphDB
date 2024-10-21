@@ -3,10 +3,12 @@ use crate::lib::utils::logger::{log_error, log_info};
 use actix_web::{get, post, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Instant;
 
 #[get("")]
-async fn list_graphs(graph_service: web::Data<GraphService>) -> impl Responder {
-  match graph_service.list_graphs() {
+async fn list_graphs(graph_service: web::Data<Arc<GraphService>>) -> impl Responder {
+  match graph_service.list_graphs().await {
     Ok(graphs) => {
       log_info("Listed graphs via REST API");
       HttpResponse::Ok().json(graphs)
@@ -25,14 +27,20 @@ struct CreateGraphRequest {
 
 #[post("")]
 async fn create_graph(
-  graph_service: web::Data<GraphService>,
+  graph_service: web::Data<Arc<GraphService>>,
   request: web::Json<CreateGraphRequest>,
 ) -> impl Responder {
   let graph_name = request.name.clone();
+  let start = Instant::now();
 
   match graph_service.create_graph(graph_name.clone()).await {
     Ok(_) => {
-      log_info(&format!("Graph '{}' created via REST API.", graph_name));
+      let finish = Instant::now();
+      let duration = finish.duration_since(start);
+      log_info(&format!(
+        "Graph '{}' created via REST API. +{:?}",
+        graph_name, duration
+      ));
       HttpResponse::Ok().body(format!("Graph '{}' created.", graph_name))
     }
     Err(GraphError::GraphAlreadyExists(_)) => {
@@ -55,45 +63,48 @@ struct AddNodeRequest {
 
 #[post("/{graph_name}/nodes")]
 async fn add_node(
-    graph_service: web::Data<GraphService>,
-    path: web::Path<String>,
-    request: web::Json<AddNodeRequest>,
-) -> impl Responder {    
-    let graph_name = path.clone();
-    let node_id = request.node_id;
-    let label = request.label.clone();
-    let properties: HashMap<String, String> =
-        request.properties.clone().unwrap_or_else(|| HashMap::new());
+  graph_service: web::Data<Arc<GraphService>>,
+  path: web::Path<String>,
+  request: web::Json<AddNodeRequest>,
+) -> impl Responder {
+  let graph_name = path.clone();
+  let node_id = request.node_id;
+  let label = request.label.clone();
+  let properties: HashMap<String, String> =
+    request.properties.clone().unwrap_or_else(|| HashMap::new());
 
-    match graph_service
-        .add_node(graph_name.clone(), node_id, label, properties)
-        .await
-    {
-        Ok(_) => {
-            log_info(&format!(
-                "Node {} added to graph '{}' via REST API.",
-                node_id, graph_name
-            ));
-            HttpResponse::Ok().body(format!("Node {} added to graph '{}'.", node_id, graph_name))
-        }
-        Err(GraphError::NodeAlreadyExists(_)) => {
-            log_error(&format!(
-                "Node with ID {} already exists in graph '{}'.",
-                node_id, graph_name
-            ));
-            HttpResponse::BadRequest().body("Node already exists.")
-        }
-        Err(GraphError::GraphNotFound(_)) => {
-            log_error(&format!("Graph '{}' not found.", graph_name));
-            HttpResponse::BadRequest().body("Graph not found.")
-        }
-        Err(e) => {
-            log_error(&format!("{:?}", e));
-            HttpResponse::InternalServerError().body("Internal Server Error")
-        }
+  let start = Instant::now();
+
+  match graph_service
+    .add_node(graph_name.clone(), node_id, label, properties)
+    .await
+  {
+    Ok(_) => {
+      let finish = Instant::now();
+      let duration = finish.duration_since(start);
+      log_info(&format!(
+        "Node {} added to graph '{}' via REST API. +{:?}",
+        node_id, graph_name, duration
+      ));
+      HttpResponse::Ok().body(format!("Node {} added to graph '{}'.", node_id, graph_name))
     }
+    Err(GraphError::NodeAlreadyExists(_)) => {
+      log_error(&format!(
+        "Node with ID {} already exists in graph '{}'.",
+        node_id, graph_name
+      ));
+      HttpResponse::BadRequest().body("Node already exists.")
+    }
+    Err(GraphError::GraphNotFound(_)) => {
+      log_error(&format!("Graph '{}' not found.", graph_name));
+      HttpResponse::BadRequest().body("Graph not found.")
+    }
+    Err(e) => {
+      log_error(&format!("{:?}", e));
+      HttpResponse::InternalServerError().body("Internal Server Error")
+    }
+  }
 }
-
 
 #[derive(Deserialize)]
 struct AddEdgeRequest {
@@ -106,7 +117,7 @@ struct AddEdgeRequest {
 
 #[post("/{graph_name}/edges")]
 async fn add_edge(
-  graph_service: web::Data<GraphService>,
+  graph_service: web::Data<Arc<GraphService>>,
   path: web::Path<String>,
   request: web::Json<AddEdgeRequest>,
 ) -> impl Responder {
@@ -161,7 +172,7 @@ struct GraphAdjacency {
 
 #[get("/{graph_name}/adjacency")]
 async fn get_graph_adjacency(
-  graph_service: web::Data<GraphService>,
+  graph_service: web::Data<Arc<GraphService>>,
   graph_name: web::Path<String>,
 ) -> impl Responder {
   match graph_service.get_graph_adjacency(graph_name.clone()).await {
@@ -197,7 +208,7 @@ struct GraphRelation {
 
 #[get("/{graph_name}/relations")]
 async fn get_graph_relations(
-  graph_service: web::Data<GraphService>,
+  graph_service: web::Data<Arc<GraphService>>,
   graph_name: web::Path<String>,
 ) -> impl Responder {
   match graph_service.get_graph_relations(graph_name.clone()).await {
@@ -246,7 +257,7 @@ struct GraphSearchQueryParams {
 
 #[get("/{graph_name}/{search_method}")]
 async fn graph_search(
-  graph_service: web::Data<GraphService>,
+  graph_service: web::Data<Arc<GraphService>>,
   query: web::Query<GraphSearchQueryParams>,
   path: web::Path<(String, String)>,
 ) -> impl Responder {

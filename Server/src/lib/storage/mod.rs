@@ -1,3 +1,4 @@
+pub mod disk_storage;
 mod storage;
 
-pub use storage::StorageManager;
+pub use storage::{StorageManager, WriteTask};
