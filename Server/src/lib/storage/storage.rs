@@ -1,29 +1,20 @@
 use std::collections::HashMap;
-use tokio::sync::mpsc::Sender;
 
 use super::disk_storage::DiskStorageManager;
 use crate::lib::graph::edge::Edge;
 use crate::lib::graph::node::Node;
 use crate::lib::graph::Graph;
 
-pub enum WriteTask {
-  CreateGraph(String),
-  AddNode { graph_name: String, node: Node },
-  AddEdge { graph_name: String, edge: Edge },
-}
-
 pub struct StorageManager {
   graphs: HashMap<String, Graph>,
   disk_storage_manager: DiskStorageManager,
-  queue_sender: Sender<WriteTask>, // Adição da fila
 }
 
 impl StorageManager {
-  pub fn new(sender: Sender<WriteTask>) -> Self {
+  pub fn new() -> Self {
     Self {
       graphs: HashMap::new(),
       disk_storage_manager: DiskStorageManager::new(),
-      queue_sender: sender,
     }
   }
 
@@ -50,23 +41,19 @@ impl StorageManager {
   }
 
   pub async fn add_node(&self, graph_name: String, node: Node) -> std::io::Result<()> {
-    let task = WriteTask::AddNode { graph_name, node };
-    self.queue_sender.send(task).await.unwrap(); // Enviando tarefa para a fila
+    self.disk_storage_manager.add_node_to_file(&graph_name, &node).await?;    
     Ok(())
   }
 
   pub async fn add_edge(&self, graph_name: String, edge: Edge) -> std::io::Result<()> {
-    let task = WriteTask::AddEdge { graph_name, edge };
-    self.queue_sender.send(task).await.unwrap(); // Enviando tarefa para a fila
+    self.disk_storage_manager.add_edge_to_file(&graph_name, &edge).await?;
     Ok(())
   }
 
   pub async fn save_graph(&mut self, graph: Graph) -> std::io::Result<()> {
     let name = graph.name().clone();
 
-    let task = WriteTask::CreateGraph(name.clone());
-
-    self.queue_sender.send(task).await.unwrap();
+    self.disk_storage_manager.create_graph_dir(&name).await?;
 
     for (_key, value) in graph.nodes().iter() {
       self.add_node(name.clone(), value.clone()).await?;
