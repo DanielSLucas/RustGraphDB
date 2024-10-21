@@ -32,7 +32,9 @@ impl GraphService {
     }
 
     let graph = Graph::new(name.clone());
-    self.save_graph_changes(&graph).await?;
+
+    let _ = self.storage_manager.write().await.save_graph(graph).await;
+    
     Ok(())
   }
 
@@ -54,9 +56,10 @@ impl GraphService {
     }
 
     let node = Node::new(node_id, label, properties);
+    
+    let _ = self.storage_manager.write().await.save_node(&graph_name, &node).await;
+    
     graph.add_node(node);
-
-    self.save_graph_changes(&graph).await?;
 
     Ok(())
   }
@@ -83,9 +86,10 @@ impl GraphService {
     }
 
     let edge = Edge::new(edge_id, label, from, to, properties);
-    graph.add_edge(edge);
+    
+    let _ = self.storage_manager.write().await.save_edge(&graph_name, &edge).await;
 
-    self.save_graph_changes(&graph).await?;
+    graph.add_edge(edge);
 
     Ok(())
   }
@@ -175,17 +179,5 @@ impl GraphService {
       .get_graph(graph_name)
       .await
       .ok_or_else(|| GraphError::GraphNotFound(graph_name.to_string()))
-  }
-
-  async fn save_graph_changes(&self, graph: &Graph) -> GraphResult<()> {
-    self
-      .storage_manager
-      .write()
-      .await
-      .save_graph(graph.clone())
-      .await
-      .map_err(|e| {
-        GraphError::StorageError(format!("Failed to save graph '{}': {}", graph.name(), e))
-      })
   }
 }

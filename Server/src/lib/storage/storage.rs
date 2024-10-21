@@ -40,13 +40,13 @@ impl StorageManager {
     }
   }
 
-  pub async fn add_node(&self, graph_name: String, node: Node) -> std::io::Result<()> {
-    self.disk_storage_manager.add_node_to_file(&graph_name, &node).await?;    
+  pub async fn save_node(&self, graph_name: &str, node: &Node) -> std::io::Result<()> {
+    self.disk_storage_manager.add_node_to_file(graph_name, node).await?;    
     Ok(())
   }
 
-  pub async fn add_edge(&self, graph_name: String, edge: Edge) -> std::io::Result<()> {
-    self.disk_storage_manager.add_edge_to_file(&graph_name, &edge).await?;
+  pub async fn save_edge(&self, graph_name: &str, edge: &Edge) -> std::io::Result<()> {
+    self.disk_storage_manager.add_edge_to_file(graph_name, edge).await?;
     Ok(())
   }
 
@@ -54,14 +54,6 @@ impl StorageManager {
     let name = graph.name().clone();
 
     self.disk_storage_manager.create_graph_dir(&name).await?;
-
-    for (_key, value) in graph.nodes().iter() {
-      self.add_node(name.clone(), value.clone()).await?;
-    }
-
-    for (_key, value) in graph.edges().iter() {
-      self.add_edge(name.clone(), value.clone()).await?;
-    }
 
     self.graphs.insert(name.clone(), graph);
 
