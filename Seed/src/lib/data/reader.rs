@@ -6,16 +6,16 @@ use tokio::task;
 
 #[derive(Debug, Deserialize, serde::Serialize)]
 pub struct RoadData {
-    pub street: String,
-    pub from: String,
-    pub to: String,
-    pub distance_km: f64,
-    pub travel_time_min: f64,
-    pub congestion_level: f64,
+    pub Street: String,
+    pub From: String,
+    pub To: String,
+    pub Distance_km: f64,
+    pub Travel_time_min: f64,
+    pub Congestion_level: f64,
 }
 
 pub struct CSVReader {
-    pub records: Vec<RoadData>, // Armazena os registros lidos
+    records: Vec<RoadData>, // Armazena os registros lidos
 }
 
 impl CSVReader {
@@ -33,24 +33,8 @@ impl CSVReader {
         Ok(CSVReader { records })
     }
 
-    pub fn get_records(&self) -> Vec<RoadData> {
-        self.records.clone() // Retorna uma cópia dos registros
-    }
-
     // Retorna um iterador sobre os registros
     pub fn iter(&self) -> std::slice::Iter<RoadData> {
         self.records.iter()
-    }
-
-    // Remove um registro baseado na `street`
-    pub fn remove_record(&mut self, street: &str) -> bool {
-        println!("FFFFFFF");
-        if let Some(pos) = self.records.iter().position(|r| r.street == street) {
-            println!("PORA");
-            self.records.remove(pos);
-            true // Registro removido com sucesso
-        } else {
-            false // Registro não encontrado
-        }
     }
 }
