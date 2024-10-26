@@ -1,19 +1,24 @@
-use std::sync::Arc;  // Esta importação não está sendo usada, pode ser removida se desnecessária.
-use std::error::Error;  // Adicione esta importação para o manejo de erros.
+use std::sync::Arc;
+use std::error::Error; 
 use reqwest::Client;
-use serde::{Deserialize, Serialize}; // Inclua Serialize se for usar em JSON.
+use serde::{Deserialize, Serialize};
 use tokio::task;
 use chrono::Utc;
 
-use seedDataFrame::lib::data::reader::CSVReader;
+use seedDataFrame::lib::data::{reader_edges::CSVReaderEdge, reader_nodes::CSVReaderNode};
 use seedDataFrame::lib::api::rest::GraphService;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let file_path = "traffic_navigation_dataset copy.csv";  // Substitua com o caminho para o seu arquivo CSV
+    let file_path_nodes = "nodes.csv";
 
     // Lê os dados do CSV de forma assíncrona
-    let csv_reader = CSVReader::read_csv(file_path).await?; // Lê os dados e armazena em um CSVReader
+    let csv_reader_nodes = CSVReaderNode::read_csv(file_path_nodes).await?; // Lê os dados e armazena em um CSVReader
+
+    let file_path_edges = "edges.csv";
+
+    // Lê os dados do CSV de forma assíncrona
+    let csv_reader_edges = CSVReaderEdge::read_csv(file_path_edges).await?; // Lê os dados e armazena em um CSVReader
 
     // Inicializa o cliente HTTP
     let client = Arc::new(Client::new());
@@ -23,14 +28,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let graph_name = format!("some_graph_{}", timestamp);
 
     // Define a URL base da API para onde os dados serão enviados
-    let base_url = "http://localhost:8080".to_string();  // Substitua pelo endereço correto da API
+    let base_url = "http://localhost:8080".to_string();
 
     // Cria o GraphService com o cliente HTTP e URL base
     let graph_service = GraphService {
         client,
         base_url,
         graph_name,
-        data: Arc::new(csv_reader), // Agora aqui é Arc<CSVReader>
+        data_nodes: Arc::new(csv_reader_nodes),
+        data_edges: Arc::new(csv_reader_edges)
     };
 
     // Envia os dados do CSV para os endpoints da API de forma simultânea
