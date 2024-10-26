@@ -1,4 +1,5 @@
-pub mod disk_storage;
-mod storage;
+mod disk_storage;
+mod in_memory_storage;
+mod manager;
 
-pub use storage::StorageManager;
+pub use manager::StorageManager;

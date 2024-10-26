@@ -2,13 +2,12 @@ use std::sync::Arc;
 
 use actix_web::web::scope;
 use actix_web::{web, App, HttpServer};
-use tokio::sync::RwLock;
 
 use super::handlers;
 use crate::lib::services::graph_service::GraphService;
 use crate::lib::storage::StorageManager;
 
-pub async fn run_server(storage_manager: RwLock<StorageManager>) -> std::io::Result<()> {
+pub async fn run_server(storage_manager: Arc<StorageManager>) -> std::io::Result<()> {
   let graph_service = Arc::new(GraphService::new(storage_manager));
 
   HttpServer::new(move || {

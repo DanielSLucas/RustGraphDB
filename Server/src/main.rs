@@ -1,6 +1,7 @@
+use std::sync::Arc;
+
 use signal_hook::consts::signal::{SIGINT, SIGTERM};
 use signal_hook::iterator::Signals;
-use tokio::sync::RwLock;
 use tokio::task;
 
 use graphdb::lib::api::rest::run_server;
@@ -9,7 +10,7 @@ use graphdb::lib::utils::logger::log_info;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-  let storage_manager = RwLock::new(StorageManager::new());
+  let storage_manager = Arc::new(StorageManager::new());
 
   task::spawn_blocking(move || {
     let mut signals = Signals::new(&[SIGINT, SIGTERM]).unwrap();

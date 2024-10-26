@@ -6,4 +6,5 @@ pub mod lib {
   pub mod services;
   pub mod storage;
   pub mod utils;
+  pub mod errors;
 }

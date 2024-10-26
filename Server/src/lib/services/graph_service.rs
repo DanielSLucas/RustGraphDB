@@ -1,9 +1,8 @@
-use tokio::sync::RwLock;
-
-pub use super::graph_error::GraphError;
+use crate::lib::errors::graph_error::GraphError;
 use crate::lib::graph::{edge::Edge, node::Node, Graph};
 use crate::lib::storage::StorageManager;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 // Tamanho de grafo para rodar usando multi-threads
 const TAM_MIN_GRPAH: usize = 10;
@@ -11,35 +10,28 @@ const TAM_MIN_GRPAH: usize = 10;
 pub type GraphResult<T> = Result<T, GraphError>;
 
 pub struct GraphService {
-  storage_manager: RwLock<StorageManager>,
+  storage_manager: Arc<StorageManager>,
 }
 
 impl GraphService {
-  pub fn new(storage_manager: RwLock<StorageManager>) -> Self {
+  pub fn new(storage_manager: Arc<StorageManager>) -> Self {
     Self { storage_manager }
   }
 
   pub async fn create_graph(&self, name: String) -> GraphResult<()> {
-    if self
-      .storage_manager
-      .write()
-      .await
-      .get_graph(&name)
-      .await
-      .is_some()
-    {
+    if self.storage_manager.get_graph(&name).await.is_some() {
       return Err(GraphError::GraphAlreadyExists(name));
     }
 
     let graph = Graph::new(name.clone());
 
-    let _ = self.storage_manager.write().await.save_graph(graph).await;
-    
+    let _ = self.storage_manager.create_graph(name, graph).await;
+
     Ok(())
   }
 
   pub async fn list_graphs(&self) -> GraphResult<Vec<String>> {
-    Ok(self.storage_manager.read().await.get_graph_names().clone())
+    Ok(self.storage_manager.list_graph_names().await)
   }
 
   pub async fn add_node(
@@ -49,17 +41,15 @@ impl GraphService {
     label: String,
     properties: HashMap<String, String>,
   ) -> GraphResult<()> {
-    let mut graph = self.get_graph(&graph_name).await?;
+    let graph = self.get_graph(&graph_name).await?;
 
     if graph.get_node(node_id).is_some() {
       return Err(GraphError::NodeAlreadyExists(node_id));
     }
 
     let node = Node::new(node_id, label, properties);
-    
-    let _ = self.storage_manager.write().await.save_node(&graph_name, &node).await;
-    
-    graph.add_node(node);
+
+    self.storage_manager.add_node(graph_name, node).await;
 
     Ok(())
   }
@@ -73,7 +63,7 @@ impl GraphService {
     label: String,
     properties: HashMap<String, String>,
   ) -> GraphResult<()> {
-    let mut graph = self.get_graph(&graph_name).await?;
+    let graph = self.get_graph(&graph_name).await?;
 
     if graph.get_edge(edge_id).is_some() {
       return Err(GraphError::EdgeAlreadyExists(edge_id));
@@ -86,10 +76,8 @@ impl GraphService {
     }
 
     let edge = Edge::new(edge_id, label, from, to, properties);
-    
-    let _ = self.storage_manager.write().await.save_edge(&graph_name, &edge).await;
 
-    graph.add_edge(edge);
+    self.storage_manager.add_edge(graph_name, edge).await;
 
     Ok(())
   }
@@ -174,8 +162,6 @@ impl GraphService {
   async fn get_graph(&self, graph_name: &str) -> GraphResult<Graph> {
     self
       .storage_manager
-      .write()
-      .await
       .get_graph(graph_name)
       .await
       .ok_or_else(|| GraphError::GraphNotFound(graph_name.to_string()))

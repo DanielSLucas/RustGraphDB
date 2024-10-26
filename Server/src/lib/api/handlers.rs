@@ -1,4 +1,5 @@
-use crate::lib::services::graph_service::{GraphError, GraphService};
+use crate::lib::errors::graph_error::GraphError;
+use crate::lib::services::graph_service::GraphService;
 use crate::lib::utils::logger::{log_error, log_info};
 use actix_web::{get, post, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};

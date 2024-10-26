@@ -1,197 +1,288 @@
-use std::collections::HashMap;
-use std::{fs, path::PathBuf};
-use tokio::fs as async_fs;
-use tokio::io::AsyncWriteExt;
+use serde::{Deserialize, Serialize};
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Seek, SeekFrom};
+use std::path::PathBuf;
 
 use crate::lib::graph::edge::Edge;
 use crate::lib::graph::node::Node;
 use crate::lib::graph::Graph;
 
-const NODES_FILE: &str = "nodes.csv";
-const EDGES_FILE: &str = "edges.csv";
+use super::manager::WriteOperation;
+
 const STORAGE_DIR: &str = "storage";
 
+#[derive(Serialize, Deserialize)]
+struct GraphMetadata {
+  node_count: usize,
+  edge_count: usize,
+  next_node_id: usize,
+  next_edge_id: usize,
+}
+
 #[derive(Clone)]
-pub struct DiskStorageManager {}
+pub struct DiskStorage {
+  storage_dir: PathBuf,
+}
 
-impl DiskStorageManager {
-  pub fn new() -> Self {
-    DiskStorageManager::create_storage_dir_if_not_exists();
+impl DiskStorage {
+  pub fn new() -> io::Result<Self> {
+    let storage_dir = DiskStorage::create_storage_dir_if_not_exists()?;
 
-    Self {}
+    Ok(Self { storage_dir })
   }
 
-  fn create_storage_dir_if_not_exists() {
-    let storage_path = PathBuf::from(STORAGE_DIR);
+  fn create_storage_dir_if_not_exists() -> io::Result<PathBuf> {
+    let storage_dir = PathBuf::from(STORAGE_DIR);
 
-    if !storage_path.exists() {
-      fs::create_dir_all(&storage_path).expect("Failed to create storage directory");
+    if !storage_dir.exists() {
+      fs::create_dir_all(&storage_dir).expect("Failed to create storage directory");
+    }
+
+    Ok(storage_dir)
+  }
+
+  pub async fn process_write_operation(&self, operation: WriteOperation) {
+    match operation {
+      WriteOperation::CreateGraph(graph_name, graph) => {
+        let _ = self.create_graph(graph_name, graph);
+      }
+      WriteOperation::AddNode(graph_name, node) => {
+        let _ = self.add_node(&graph_name, node);
+      }
+      WriteOperation::AddEdge(graph_name, edge) => {
+        let _ = self.add_edge(&graph_name, edge);
+      }
+      WriteOperation::UpdateNode(graph_name, node) => {
+        let _ = self.update_node(&graph_name, node);
+      }
+      WriteOperation::UpdateEdge(graph_name, edge) => {
+        let _ = self.update_edge(&graph_name, edge);
+      }
+      WriteOperation::DeleteGraph(graph_name) => {
+        let _ = self.delete_graph(&graph_name);
+      }
+      WriteOperation::DeleteNode(graph_name, node_id) => {
+        let _ = self.delete_node(&graph_name, node_id);
+      }
+      WriteOperation::DeleteEdge(graph_name, edge_id) => {
+        let _ = self.delete_edge(&graph_name, edge_id);
+      }
     }
   }
 
-  fn get_graph_folder_names() -> Vec<String> {
-    let graph_folders = DiskStorageManager::get_graph_folders();
-
-    graph_folders
-      .into_iter()
-      .map(|path| path.to_str().unwrap().to_string())
-      .collect()
-  }
-
-  fn get_graph_folders() -> Vec<PathBuf> {
-    fs::read_dir(PathBuf::from(STORAGE_DIR))
-      .expect("Failed to read storage directory")
-      .filter_map(|entry| {
-        let entry = entry.ok()?;
-        let path = entry.path();
-        if path.is_dir() {
-          Some(path)
-        } else {
-          None
+  pub fn list_graph_names(&self) -> io::Result<Vec<String>> {
+    let mut graph_names = Vec::new();
+    for entry in fs::read_dir(&self.storage_dir)? {
+      let entry = entry?;
+      let path = entry.path();
+      if let Some(extension) = path.extension() {
+        if extension == "gph" {
+          if let Some(name) = path.file_stem() {
+            graph_names.push(name.to_string_lossy().into_owned());
+          }
         }
-      })
-      .collect()
+      }
+    }
+    Ok(graph_names)
   }
 
-  pub fn get_graph_names(&self) -> Vec<String> {
-    DiskStorageManager::get_graph_folder_names()
-  }
-
-  pub async fn create_graph_dir(&self, name: &str) -> std::io::Result<()> {
-    let graph_dir = PathBuf::from(STORAGE_DIR).join(name);
-
-    if !graph_dir.exists() {
-      fs::create_dir_all(&graph_dir)?;
-
-      let mut nodes_file = async_fs::File::create(graph_dir.clone().join(NODES_FILE)).await?;
-      nodes_file
-        .write_all("id,label,properties\n".as_bytes())
-        .await?;
-
-      let mut edges_file = async_fs::File::create(graph_dir.clone().join(EDGES_FILE)).await?;
-      edges_file
-        .write_all("id,label,from,to,properties\n".as_bytes())
-        .await?;
+  // Método para criar um novo grafo
+  pub fn create_graph(&self, grafo_id: String, graph: Graph) -> io::Result<()> {
+    let file_path = self.storage_dir.join(format!("{}.gph", grafo_id));
+    if file_path.exists() {
+      return Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        "Grafo já existe",
+      ));
     }
 
+    let metadata = GraphMetadata {
+      node_count: 0,
+      edge_count: 0,
+      next_node_id: 1,
+      next_edge_id: 1,
+    };
+
+    let mut file = File::create(file_path)?;
+    self.write_graph_metadata(&mut file, &metadata)?;
+    self.write_graph_data(&mut file, &graph)
+  }
+
+  // Método para buscar um grafo pelo nome
+  pub fn get_graph(&self, grafo_id: &str) -> io::Result<Option<Graph>> {
+    let file_path = self.storage_dir.join(format!("{}.gph", grafo_id));
+    if !file_path.exists() {
+      return Ok(None);
+    }
+
+    let mut file = File::open(file_path)?;
+    let _metadata = self.read_graph_metadata(&mut file)?;
+    let graph = self.read_graph_data(&mut file)?;
+    Ok(Some(graph))
+  }
+
+  // Método para adicionar um nó a um grafo
+  pub fn add_node(&self, grafo_id: &str, node: Node) -> io::Result<()> {
+    let file_path = self.storage_dir.join(format!("{}.gph", grafo_id));
+    let mut file = File::options().read(true).write(true).open(file_path)?;
+
+    let mut metadata = self.read_graph_metadata(&mut file)?;
+    metadata.node_count += 1;
+    metadata.next_node_id += 1;
+    file.seek(SeekFrom::Start(0))?;
+    self.write_graph_metadata(&mut file, &metadata)?;
+
+    file.seek(SeekFrom::End(0))?;
+    bincode::serialize_into(&mut file, &node).expect("Failed do add node");
     Ok(())
   }
 
-  pub async fn add_node_to_file(&self, graph_name: &str, node: &Node) -> std::io::Result<()> {
-    let graph_dir = PathBuf::from(STORAGE_DIR).join(graph_name);
-    let nodes_file = graph_dir.join(NODES_FILE);
+  // Método para adicionar uma aresta a um grafo
+  pub fn add_edge(&self, grafo_id: &str, edge: Edge) -> io::Result<()> {
+    let file_path = self.storage_dir.join(format!("{}.gph", grafo_id));
+    let mut file = File::options().read(true).write(true).open(file_path)?;
 
-    if graph_dir.exists() {
-      let mut file = async_fs::OpenOptions::new()
-        .append(true)
-        .open(nodes_file)
-        .await?;
+    let mut metadata = self.read_graph_metadata(&mut file)?;
+    metadata.edge_count += 1;
+    metadata.next_edge_id += 1;
+    file.seek(SeekFrom::Start(0))?;
+    self.write_graph_metadata(&mut file, &metadata)?;
 
-      let properties = node
-        .properties
-        .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
-        .collect::<Vec<_>>()
-        .join("&");
-
-      let line = format!("{},{},{}\n", node.id, node.label, properties);
-
-      file.write_all(line.as_bytes()).await?;
-    }
-
+    file.seek(SeekFrom::End(0))?;
+    bincode::serialize_into(&mut file, &edge).expect("Failed do add edge");
     Ok(())
   }
 
-  pub async fn add_edge_to_file(&self, graph_name: &str, edge: &Edge) -> std::io::Result<()> {
-    let graph_dir = PathBuf::from(STORAGE_DIR).join(graph_name);
-    let edges_file = graph_dir.join(EDGES_FILE);
+  // Método para deletar um grafo
+  pub fn delete_graph(&self, grafo_id: &str) -> io::Result<()> {
+    let file_path = self.storage_dir.join(format!("{}.gph", grafo_id));
+    if file_path.exists() {
+      fs::remove_file(file_path)?;
+      Ok(())
+    } else {
+      Err(io::Error::new(
+        io::ErrorKind::NotFound,
+        "Grafo não encontrado",
+      ))
+    }
+  }
 
-    if graph_dir.exists() {
-      let mut file = async_fs::OpenOptions::new()
-        .append(true)
-        .open(edges_file)
-        .await?;
+  fn get_graph_path(&self, grafo_id: &str) -> PathBuf {
+    self.storage_dir.join(format!("{}.gph", grafo_id))
+  }
 
-      let properties = edge
-        .properties
-        .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
-        .collect::<Vec<_>>()
-        .join("&");
-      let line = format!(
-        "{},{},{},{},{}\n",
-        edge.id, edge.label, edge.from, edge.to, properties
-      );
-      file.write_all(line.as_bytes()).await?;
+  // Método para atualizar um nó existente
+  pub fn update_node(&self, grafo_id: &str, updated_node: Node) -> io::Result<()> {
+    let file_path = self.get_graph_path(grafo_id);
+    let mut file = OpenOptions::new().read(true).write(true).open(&file_path)?;
+    let mut nodes_and_edges: Vec<Node> = Vec::new();
+
+    // Ler e desserializar todo o conteúdo do arquivo para a memória
+    file.seek(SeekFrom::Start(0))?;
+    while let Ok(node) = bincode::deserialize_from::<_, Node>(&mut file) {
+      // Se o nó tiver o mesmo ID, atualiza com o nó modificado
+      if node.id == updated_node.id {
+        nodes_and_edges.push(updated_node.clone());
+      } else {
+        nodes_and_edges.push(node);
+      }
     }
 
+    // Reescrever o arquivo com o nó atualizado
+    file.set_len(0)?;
+    for node in nodes_and_edges {
+      bincode::serialize_into(&mut file, &node).expect("Failed to update node");
+    }
     Ok(())
   }
 
-  pub async fn load_graph_from_file(&self, name: &str) -> std::io::Result<Graph> {
-    let graph = Graph::new(name.to_string());
+  // Método para atualizar uma aresta existente
+  pub fn update_edge(&self, grafo_id: &str, updated_edge: Edge) -> io::Result<()> {
+    let file_path = self.get_graph_path(grafo_id);
+    let mut file = OpenOptions::new().read(true).write(true).open(&file_path)?;
+    let mut edges: Vec<Edge> = Vec::new();
 
-    let graph = self.load_nodes_from_file(graph).await?;
-    let graph = self.load_edges_from_file(graph).await?;
-
-    Ok(graph)
-  }
-
-  async fn load_nodes_from_file(&self, mut graph: Graph) -> std::io::Result<Graph> {
-    let nodes_filepath = PathBuf::from(STORAGE_DIR)
-      .join(graph.name())
-      .join(NODES_FILE);
-    let data = async_fs::read_to_string(nodes_filepath).await?;
-
-    for row in data.split("\n") {
-      let row: Vec<&str> = row.split(",").collect();
-
-      let id = row.get(0).unwrap().parse().unwrap();
-      let label = row.get(1).unwrap().to_string();
-      let properties = self.get_properties(row.get(2).unwrap());
-
-      graph.add_node(Node::new(id, label, properties));
+    // Ler e desserializar todas as arestas para a memória
+    file.seek(SeekFrom::Start(0))?;
+    while let Ok(edge) = bincode::deserialize_from::<_, Edge>(&mut file) {
+      if edge.id == updated_edge.id {
+        edges.push(updated_edge.clone());
+      } else {
+        edges.push(edge);
+      }
     }
 
-    Ok(graph)
+    // Reescrever o arquivo com a aresta atualizada
+    file.set_len(0)?;
+    for edge in edges {
+      bincode::serialize_into(&mut file, &edge).expect("Failed to update edge");
+    }
+    Ok(())
   }
 
-  async fn load_edges_from_file(&self, mut graph: Graph) -> std::io::Result<Graph> {
-    let edges_filepath = PathBuf::from(STORAGE_DIR)
-      .join(graph.name())
-      .join(EDGES_FILE);
-    let data = async_fs::read_to_string(edges_filepath).await?;
+  // Método para deletar um nó
+  pub fn delete_node(&self, grafo_id: &str, node_id: usize) -> io::Result<()> {
+    let file_path = self.get_graph_path(grafo_id);
+    let mut file = OpenOptions::new().read(true).write(true).open(&file_path)?;
+    let mut nodes: Vec<Node> = Vec::new();
 
-    for row in data.split("\n") {
-      let row: Vec<&str> = row.split(",").collect();
-
-      let id = row.get(0).unwrap().parse().unwrap();
-      let label = row.get(1).unwrap().to_string();
-      let from = row.get(2).unwrap().parse().unwrap();
-      let to = row.get(3).unwrap().parse().unwrap();
-      let properties = self.get_properties(row.get(4).unwrap());
-
-      graph.add_edge(Edge::new(id, label, from, to, properties));
+    // Ler e desserializar todos os nós
+    file.seek(SeekFrom::Start(0))?;
+    while let Ok(node) = bincode::deserialize_from::<_, Node>(&mut file) {
+      if node.id != node_id {
+        nodes.push(node);
+      }
     }
 
-    Ok(graph)
+    // Reescrever o arquivo com os nós restantes
+    file.set_len(0)?;
+    for node in nodes {
+      bincode::serialize_into(&mut file, &node).expect("Failed to delete node");
+    }
+    Ok(())
   }
 
-  fn get_properties(&self, props_string: &str) -> HashMap<String, String> {
-    let mut hash_map = HashMap::new();
-    let keys_n_values: Vec<(&str, &str)> = props_string
-      .split("&")
-      .map(|property| {
-        let splited_prop: Vec<&str> = property.split("=").collect();
+  // Método para deletar uma aresta
+  pub fn delete_edge(&self, grafo_id: &str, edge_id: usize) -> io::Result<()> {
+    let file_path = self.get_graph_path(grafo_id);
+    let mut file = OpenOptions::new().read(true).write(true).open(&file_path)?;
+    let mut edges: Vec<Edge> = Vec::new();
 
-        (*splited_prop.get(0).unwrap(), *splited_prop.get(1).unwrap())
-      })
-      .collect();
-
-    for (key, value) in keys_n_values {
-      hash_map.insert(key.to_string(), value.to_string());
+    // Ler e desserializar todas as arestas
+    file.seek(SeekFrom::Start(0))?;
+    while let Ok(edge) = bincode::deserialize_from::<_, Edge>(&mut file) {
+      if edge.id != edge_id {
+        edges.push(edge);
+      }
     }
 
-    hash_map
+    // Reescrever o arquivo com as arestas restantes
+    file.set_len(0)?;
+    for edge in edges {
+      bincode::serialize_into(&mut file, &edge).expect("Failed to delete edge");
+    }
+    Ok(())
+  }
+
+  // Métodos para ler e escrever metadados do grafo
+  fn write_graph_metadata(&self, file: &mut File, metadata: &GraphMetadata) -> io::Result<()> {
+    file.seek(SeekFrom::Start(0))?;
+    bincode::serialize_into(file, metadata).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+  }
+
+  fn read_graph_metadata(&self, file: &mut File) -> io::Result<GraphMetadata> {
+    file.seek(SeekFrom::Start(0))?;
+    bincode::deserialize_from(file).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+  }
+
+  // Métodos para ler e escrever dados do grafo (nós e arestas)
+  fn write_graph_data(&self, file: &mut File, graph: &Graph) -> io::Result<()> {
+    file.seek(SeekFrom::End(0))?;
+    bincode::serialize_into(file, graph).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+  }
+
+  fn read_graph_data(&self, file: &mut File) -> io::Result<Graph> {
+    file.seek(SeekFrom::End(0))?;
+    bincode::deserialize_from(file).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
   }
 }
