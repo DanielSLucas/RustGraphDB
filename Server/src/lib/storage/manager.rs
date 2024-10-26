@@ -7,6 +7,7 @@ use crate::lib::graph::{edge::Edge, node::Node, Graph};
 use super::{disk_storage::DiskStorage, in_memory_storage::InMemoryStorage};
 
 pub struct StorageManager {
+  disk_storage: DiskStorage,
   in_memory_storage: Arc<InMemoryStorage>,
   write_queue_mem: Sender<WriteOperation>,
   write_queue_disk: Sender<WriteOperation>,
@@ -29,6 +30,7 @@ impl StorageManager {
     let (write_queue_disk, write_queue_disk_rx) = mpsc::channel(100);
 
     let manager = Self {
+      disk_storage: DiskStorage::new().expect("Failed to initialize disk storage"),
       in_memory_storage: Arc::new(InMemoryStorage::new()),
       write_queue_mem,
       write_queue_disk,
@@ -65,11 +67,27 @@ impl StorageManager {
   }
 
   pub async fn list_graph_names(&self) -> Vec<String> {
-    self.in_memory_storage.list_graph_names().await
+    let graph_names = self.in_memory_storage.list_graph_names().await;
+
+    if graph_names.is_empty() {
+      return match self.disk_storage.list_graph_names() {
+        Ok(graphs) => graphs,
+        Err(_) => Vec::new(),
+      };
+    }
+
+    graph_names
   }
 
   pub async fn get_graph(&self, graph_name: &str) -> Option<Graph> {
-    self.in_memory_storage.get_graph(graph_name).await
+    if let Some(graph) = self.in_memory_storage.get_graph(graph_name).await {
+      Some(graph)
+    } else {
+      match self.disk_storage.get_graph(graph_name) {
+        Ok(graph_option) => graph_option,
+        Err(_) => None,
+      }
+    }
   }
 
   pub async fn create_graph(&self, graph_name: String, graph: Graph) {

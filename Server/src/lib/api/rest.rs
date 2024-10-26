@@ -16,6 +16,7 @@ pub async fn run_server(storage_manager: Arc<StorageManager>) -> std::io::Result
       .service(
         scope("/graphs")
           .service(handlers::list_graphs)
+          .service(handlers::get_graph)
           .service(handlers::create_graph)
           .service(handlers::add_node)
           .service(handlers::add_edge)

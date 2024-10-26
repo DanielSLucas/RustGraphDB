@@ -13,7 +13,8 @@ pub struct Graph {
   name: String,
   nodes: HashMap<usize, Node>,
   edges: HashMap<usize, Edge>,
-  adjacency_list: HashMap<usize, Vec<usize>>,
+  next_node_id: usize,
+  next_edge_id: usize,
 }
 
 impl Graph {
@@ -22,7 +23,8 @@ impl Graph {
       name,
       nodes: HashMap::new(),
       edges: HashMap::new(),
-      adjacency_list: HashMap::new(),
+      next_node_id: 0,
+      next_edge_id: 0,
     }
   }
 
@@ -39,13 +41,36 @@ impl Graph {
     &self.edges
   }
 
-  pub fn adjacency_list(&self) -> &HashMap<usize, Vec<usize>> {
-    &self.adjacency_list
+  pub fn adjacency_list(&self) -> HashMap<usize, Vec<usize>> {
+    let mut adj = HashMap::new();
+
+    for (_k, edge) in self.edges() {
+      if !adj.contains_key(&edge.from) {
+        let mut connected_nodes = Vec::new();
+        connected_nodes.push(edge.to);
+        adj.insert(edge.from, connected_nodes);
+      } else {
+        let mut connected_nodes = adj.get(&edge.id).unwrap().to_vec();
+        connected_nodes.push(edge.to);
+        adj.insert(edge.from, connected_nodes);
+      }
+    }
+
+    adj
   }
 
   // NODES CRUD
-  pub fn add_node(&mut self, node: Node) {
-    self.nodes.insert(node.id, node);
+  pub fn add_node(&mut self, label: String, properties: HashMap<String, String>) -> Node {
+    self.next_node_id += 1;
+    let node = Node::new(self.next_node_id, label, properties);
+    self.nodes.insert(node.id, node.clone());
+    node
+  }
+
+  pub fn add_full_node(&mut self, node: Node) -> Node {
+    self.next_node_id = node.id + 1;
+    self.nodes.insert(node.id, node.clone());
+    node
   }
 
   pub fn get_node(&self, id: usize) -> Option<&Node> {
@@ -64,13 +89,23 @@ impl Graph {
   }
 
   // EDGES CRUD
-  pub fn add_edge(&mut self, edge: Edge) {
-    self
-      .adjacency_list
-      .entry(edge.from)
-      .or_insert_with(Vec::new)
-      .push(edge.to);
-    self.edges.insert(edge.id, edge);
+  pub fn add_edge(
+    &mut self,
+    label: String,
+    from: usize,
+    to: usize,
+    properties: HashMap<String, String>,
+  ) -> Edge {
+    self.next_edge_id += 1;
+    let edge = Edge::new(self.next_edge_id, label, from, to, properties);
+    self.edges.insert(edge.id, edge.clone());
+    edge
+  }
+
+  pub fn add_full_edge(&mut self, edge: Edge) -> Edge {
+    self.next_edge_id = edge.id + 1;
+    self.edges.insert(edge.id, edge.clone());
+    edge
   }
 
   pub fn get_edge(&self, id: usize) -> Option<&Edge> {
@@ -85,10 +120,6 @@ impl Graph {
   }
 
   pub fn delete_edge(&mut self, edge_id: usize) {
-    if let Some(edge) = self.edges.remove(&edge_id) {
-      if let Some(neighbors) = self.adjacency_list.get_mut(&edge.from) {
-        neighbors.retain(|&node_id| node_id != edge.to);
-      }
-    }
+    self.edges.remove(&edge_id);
   }
 }

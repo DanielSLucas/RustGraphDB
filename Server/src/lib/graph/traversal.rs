@@ -24,7 +24,7 @@ impl Graph {
 
   pub fn bfs(&self, start_id: usize, end_id: usize, threshold: usize) -> Vec<usize> {
     // Verifica o tamanho do grafo para decidir se usa multi-thread ou single-thread
-    if self.adjacency_list.len() >= threshold {
+    if self.adjacency_list().len() >= threshold {
       // Modo multi-thread
       self.bfs_multi_thread(start_id, end_id)
     } else {
@@ -48,7 +48,7 @@ impl Graph {
         return self.build_path(end_id, &parent_map);
       }
 
-      if let Some(neighbors) = self.adjacency_list.get(&node_id) {
+      if let Some(neighbors) = self.adjacency_list().get(&node_id) {
         for &adjacent_id in neighbors {
           if !visited.contains(&adjacent_id) {
             visited.insert(adjacent_id);
@@ -89,7 +89,7 @@ impl Graph {
       let queue = Arc::clone(&queue);
       let parent_map = Arc::clone(&parent_map);
       let tx = tx.clone();
-      let adjacency_list = self.adjacency_list.clone();
+      let adjacency_list = self.adjacency_list().clone();
 
       thread::spawn(move || {
         while let Some(node_id) = {
@@ -130,7 +130,7 @@ impl Graph {
 
   pub fn dfs(&self, start_id: usize, end_id: usize, threshold: usize) -> Vec<usize> {
     // Verifica o tamanho do grafo para decidir se usa multi-thread ou single-thread
-    if self.adjacency_list.len() >= threshold {
+    if self.adjacency_list().len() >= threshold {
       // Modo multi-thread
       self.dfs_parallel(start_id, end_id)
     } else {
@@ -155,7 +155,7 @@ impl Graph {
       let visited_clone = Arc::clone(&visited);
       let stack_clone = Arc::clone(&stack);
       let parent_map_clone = Arc::clone(&parent_map);
-      let adjacency_list_clone = self.adjacency_list.clone();
+      let adjacency_list_clone = self.adjacency_list().clone();
       let tx_clone = tx.clone();
 
       let handle = thread::spawn(move || {
@@ -216,7 +216,7 @@ impl Graph {
       if visited.insert(node_id) {
         parent_map.insert(node_id, None); // O nó atual não tem pai ainda
 
-        if let Some(neighbors) = self.adjacency_list.get(&node_id) {
+        if let Some(neighbors) = self.adjacency_list().get(&node_id) {
           for &adjacent_id in neighbors {
             if !visited.contains(&adjacent_id) {
               stack.push(adjacent_id);

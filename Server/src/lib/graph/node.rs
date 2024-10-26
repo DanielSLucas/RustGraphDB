@@ -16,6 +16,4 @@ impl Node {
       properties,
     }
   }
-
-  // CRUD operations for Node can be added here
 }

@@ -67,7 +67,7 @@ impl InMemoryStorage {
   pub async fn add_node(&self, graph_name: &str, node: Node) -> Result<(), GraphError> {
     let mut graphs = self.graphs.write().await;
     if let Some(graph) = graphs.get_mut(graph_name) {
-      graph.add_node(node);
+      graph.add_full_node(node);
       Ok(())
     } else {
       Err(GraphError::StorageError(format!(
@@ -80,7 +80,7 @@ impl InMemoryStorage {
   pub async fn add_edge(&self, graph_name: &str, edge: Edge) -> Result<(), GraphError> {
     let mut graphs = self.graphs.write().await;
     if let Some(graph) = graphs.get_mut(graph_name) {
-      graph.add_edge(edge);
+      graph.add_full_edge(edge);
       Ok(())
     } else {
       Err(GraphError::StorageError(format!(

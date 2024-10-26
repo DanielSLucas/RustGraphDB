@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use crate::lib::graph::edge::Edge;
 use crate::lib::graph::node::Node;
 use crate::lib::graph::Graph;
+use crate::lib::utils::logger::log_info;
 
 use super::manager::WriteOperation;
 
@@ -117,6 +118,7 @@ impl DiskStorage {
 
     let mut file = File::open(file_path)?;
     let _metadata = self.read_graph_metadata(&mut file)?;
+    log_info(&_metadata.edge_count.to_string());
     let graph = self.read_graph_data(&mut file)?;
     Ok(Some(graph))
   }
@@ -282,7 +284,7 @@ impl DiskStorage {
   }
 
   fn read_graph_data(&self, file: &mut File) -> io::Result<Graph> {
-    file.seek(SeekFrom::End(0))?;
+    file.seek(SeekFrom::Start(0))?;
     bincode::deserialize_from(file).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
   }
 }
