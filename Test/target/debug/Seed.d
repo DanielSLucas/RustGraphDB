@@ -1,0 +1,1 @@
+/home/vitor/RustGraphDB/Seed/target/debug/Seed: /home/vitor/RustGraphDB/Seed/src/lib/data/mod.rs /home/vitor/RustGraphDB/Seed/src/lib/data/reader.rs /home/vitor/RustGraphDB/Seed/src/lib.rs /home/vitor/RustGraphDB/Seed/src/main.rs

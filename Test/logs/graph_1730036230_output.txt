@@ -1,0 +1,26 @@
+Iniciando criação do grafo 'graph_1730036230'
+
+Graph created successfully.
+-----------------------------------
+Tempo de execução Nodes: 40.00 ms
+Quantidade de Nodes: 158
+Tempo por Node: 0.25 ms
+------------------------------------
+Tempo de execução Edges: 2.37  s
+Quantidade de Edges: 5000
+Tempo por Edge: 0.47 ms
+------------------------------------
+Tempo de execução total: 2.41s
+------------------------------------
+Grafo criado e nós/arestas adicionados com sucesso.
+------------------------------------
+Tempo de execução: 12.00 ms
+Quantidade de Buscas Feitas: 100
+Tempo por Busca: 0.12
+Search Fail: 100
+Search OK: 0
+------------------------------------
+Busca BFS realizada com sucesso.
+------------------------------------
+
+Execução completa.
