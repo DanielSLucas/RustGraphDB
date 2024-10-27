@@ -25,7 +25,7 @@ pub async fn run_server(storage_manager: Arc<StorageManager>) -> std::io::Result
           .service(handlers::graph_search),
       )
   })
-  .bind("localhost:9999")?
+  .bind("localhost:8080")?
   .run()
   .await
 }

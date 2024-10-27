@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::env;
 
 use testServer::lib::data::{reader_edges::CSVReaderEdge, reader_nodes::CSVReaderNode};
-use testServer::lib::api::{post_datas::GraphService, /*get_relations::{Graph, Relation},*/ get_search_server::SearchServer};
+use testServer::lib::api::{post_datas::GraphService, get_relations::{Graph, Relation},get_search_server::SearchServer};
 use testServer::lib::log::write_log::TextLogger;
 
 #[tokio::main]
@@ -33,10 +33,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let dt = Utc::now();
     let timestamp = dt.timestamp();
-    let graph_name = format!("some_graph_{}", timestamp);
+    let graph_name = format!("graph_{}", timestamp);
 
     // Define a URL base da API para onde os dados serão enviados
-    let base_url = "http://localhost:9999".to_string();
+    let base_url = "http://localhost:8080".to_string();
 
     // Cria o GraphService com o cliente HTTP e URL base
     let graph_service = GraphService {
@@ -48,7 +48,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let base_dir_log: PathBuf = current_dir.join("logs");
-    // Configura o nome do arquivo de log e inicializa o logger
     let log_file_path = base_dir_log.join(format!("{}_output.txt", graph_name));
     let logger = TextLogger::new(log_file_path.to_str().unwrap_or_default().to_string());
 
@@ -76,7 +75,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         num_search: 100
     };
 
-
     match search_server.search().await {
         Ok(log_text) => {
             logger.log(log_text).await;
@@ -90,7 +88,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Finaliza e salva o log
     logger.log("Execução completa.".to_string()).await;
+    logger.write_to_file().await?;
+    
+    let log_file_path = base_dir_log.join(format!("{}_relation.txt", graph_name));
+    let logger = TextLogger::new(log_file_path.to_str().unwrap_or_default().to_string());
 
+    let mut graph = Graph::new(client.clone(), graph_name.clone(), base_url.clone());
+    let relation_log = graph.get_relation().await?;
+    logger.log(relation_log).await;
+
+    // Finaliza e salva o log
+    logger.log("Finalizando registro das relações.\n".to_string()).await;
     logger.write_to_file().await?;
     
     Ok(())

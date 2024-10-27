@@ -92,6 +92,6 @@ impl SearchServer {
 
         println!("{}", text_log);
 
-        Ok((text_log))
+        Ok(text_log)
     }
 }
