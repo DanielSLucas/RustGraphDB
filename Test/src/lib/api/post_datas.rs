@@ -30,7 +30,7 @@ impl GraphService {
         text_log.push_str(&self.add_edges_concurrently().await?);
 
         let finish = Instant::now();
-        let execution_time = format!("Tempo de execução total: {:?}\n", finish.duration_since(start));
+        let execution_time = format!("Tempo de execução total: {:.2?}\n", finish.duration_since(start));
         text_log.push_str(&execution_time);
         println!("{}", execution_time);
 
@@ -99,9 +99,12 @@ impl GraphService {
         }
 
         let finish = Instant::now();
+        let time_execute = finish.duration_since(start).as_millis() as f64;
+
         nodes_log.push_str(&format!(
-            "Tempo de execução Nodes: {:?}\nQuantidade de Nodes: {}\n------------------------------------\n",
-            finish.duration_since(start),
+            "Tempo de execução Nodes: {:.2?} ms\nTempo por Node: {:.2?} ms\nQuantidade de Nodes: {}\n------------------------------------\n",
+            time_execute,
+            time_execute / data.len() as f64,
             data.len()
         ));
         Ok(nodes_log)
@@ -154,9 +157,11 @@ impl GraphService {
         }
 
         let finish = Instant::now();
+        let time_execute = finish.duration_since(start);
         edges_log.push_str(&format!(
-            "Tempo de execução Edges: {:?}\nQuantidade de Edges: {}\n------------------------------------\n",
-            finish.duration_since(start),
+            "Tempo de execução Edges: {:.2?}\nTempo por Edge: {:.2?} ms\nQuantidade de Edges: {}\n------------------------------------\n",
+            time_execute,
+            time_execute.as_millis() as f64 / data.len() as f64,
             data.len()
         ));
         Ok(edges_log)

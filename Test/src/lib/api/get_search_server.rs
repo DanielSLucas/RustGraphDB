@@ -83,9 +83,12 @@ impl SearchServer {
         }
 
         let finish = Instant::now();
-        let text_log = format!("Tempo de execução: {:?}\nQuantidade de Buscas Feitas: {}\nSearch Fail: {}\nSearch OK: {}\n------------------------------------", 
-        finish.duration_since(start), 
+        let time_execute = finish.duration_since(start).as_millis() as f64;
+
+        let text_log = format!("Tempo de execução: {:.2?} ms\nQuantidade de Buscas Feitas: {}\nTempo por Busca: {:.2?} ms\nSearch Fail: {}\nSearch OK: {}\n------------------------------------", 
+        time_execute, 
         self.num_search,
+        time_execute / self.num_search as f64,
         *search_fail.lock().unwrap(), 
         *search_ok.lock().unwrap()
         );
