@@ -80,7 +80,6 @@ async fn create_graph(
 
 #[derive(Deserialize)]
 struct AddNodeRequest {
-  node_id: Option<usize>,
   label: String,
   properties: Option<HashMap<String, String>>,
 }
@@ -92,7 +91,6 @@ async fn add_node(
   request: web::Json<AddNodeRequest>,
 ) -> impl Responder {
   let graph_name = path.clone();
-  let node_id = request.node_id;
   let label = request.label.clone();
   let properties: HashMap<String, String> =
     request.properties.clone().unwrap_or_else(|| HashMap::new());
@@ -100,7 +98,7 @@ async fn add_node(
   let start = Instant::now();
 
   match graph_service
-    .add_node(graph_name.clone(), node_id, label, properties)
+    .add_node(graph_name.clone(), label, properties)
     .await
   {
     Ok(node) => {
@@ -110,7 +108,7 @@ async fn add_node(
         "Node {} added to graph '{}' via REST API. +{:?}",
         node.id, graph_name, duration
       ));
-      HttpResponse::Ok().body(format!("Node {} added to graph '{}'.", node.id, graph_name))
+      HttpResponse::Ok().json(node)
     }
     Err(GraphError::NodeAlreadyExists(id)) => {
       log_error(&format!(
@@ -132,7 +130,6 @@ async fn add_node(
 
 #[derive(Deserialize)]
 struct AddEdgeRequest {
-  edge_id: Option<usize>,
   from: usize,
   to: usize,
   label: String,
@@ -146,7 +143,6 @@ async fn add_edge(
   request: web::Json<AddEdgeRequest>,
 ) -> impl Responder {
   let graph_name = path.clone();
-  let edge_id = request.edge_id;
   let from = request.from;
   let to = request.to;
   let label = request.label.clone();
@@ -154,7 +150,7 @@ async fn add_edge(
     request.properties.clone().unwrap_or_else(|| HashMap::new());
 
   match graph_service
-    .add_edge(graph_name.clone(), edge_id, from, to, label, properties)
+    .add_edge(graph_name.clone(), from, to, label, properties)
     .await
   {
     Ok(edge) => {
@@ -162,7 +158,7 @@ async fn add_edge(
         "Edge {} added to graph '{}' via REST API.",
         edge.id, graph_name
       ));
-      HttpResponse::Ok().body(format!("Edge {} added to graph '{}'.", edge.id, graph_name))
+      HttpResponse::Ok().json(edge)
     }
     Err(GraphError::EdgeAlreadyExists(id)) => {
       log_error(&format!(

@@ -4,27 +4,28 @@ pub mod traversal;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use self::edge::Edge;
 use self::node::Node;
+
+use super::storage::id_generator::IdGenerator;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
   name: String,
   nodes: HashMap<usize, Node>,
   edges: HashMap<usize, Edge>,
-  next_node_id: usize,
-  next_edge_id: usize,
+  id_generator: Arc<IdGenerator>,
 }
 
 impl Graph {
-  pub fn new(name: String) -> Self {
+  pub fn new(name: String, id_generator: Arc<IdGenerator>) -> Self {
     Self {
       name,
       nodes: HashMap::new(),
       edges: HashMap::new(),
-      next_node_id: 0,
-      next_edge_id: 0,
+      id_generator,
     }
   }
 
@@ -77,14 +78,12 @@ impl Graph {
 
   // NODES CRUD
   pub fn add_node(&mut self, label: String, properties: HashMap<String, String>) -> Node {
-    self.next_node_id += 1;
-    let node = Node::new(self.next_node_id, label, properties);
+    let node = Node::new(self.id_generator.generate_node_id(), label, properties);
     self.nodes.insert(node.id, node.clone());
     node
   }
 
   pub fn add_full_node(&mut self, node: Node) -> Node {
-    self.next_node_id = node.id + 1;
     self.nodes.insert(node.id, node.clone());
     node
   }
@@ -112,14 +111,18 @@ impl Graph {
     to: usize,
     properties: HashMap<String, String>,
   ) -> Edge {
-    self.next_edge_id += 1;
-    let edge = Edge::new(self.next_edge_id, label, from, to, properties);
+    let edge = Edge::new(
+      self.id_generator.generate_edge_id(),
+      label,
+      from,
+      to,
+      properties,
+    );
     self.edges.insert(edge.id, edge.clone());
     edge
   }
 
   pub fn add_full_edge(&mut self, edge: Edge) -> Edge {
-    self.next_edge_id = edge.id + 1;
     self.edges.insert(edge.id, edge.clone());
     edge
   }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::lib::{
@@ -6,45 +6,18 @@ use crate::lib::{
   graph::{edge::Edge, node::Node, Graph},
 };
 
-use super::manager::WriteOperation;
+use super::id_generator::IdGenerator;
 
 pub struct InMemoryStorage {
   graphs: RwLock<HashMap<String, Graph>>,
+  graphs_id_generators: RwLock<HashMap<String, Arc<IdGenerator>>>,
 }
 
 impl InMemoryStorage {
   pub fn new() -> Self {
     Self {
       graphs: RwLock::new(HashMap::new()),
-    }
-  }
-
-  pub async fn process_write_operation(&self, operation: WriteOperation) {
-    match operation {
-      WriteOperation::CreateGraph(graph_name, graph) => {
-        let _ = self.create_graph(graph_name, graph).await;
-      }
-      WriteOperation::AddNode(graph_name, node) => {
-        let _ = self.add_node(&graph_name, node).await;
-      }
-      WriteOperation::AddEdge(graph_name, edge) => {
-        let _ = self.add_edge(&graph_name, edge).await;
-      }
-      WriteOperation::UpdateNode(graph_name, node) => {
-        let _ = self.update_node(&graph_name, node).await;
-      }
-      WriteOperation::UpdateEdge(graph_name, edge) => {
-        let _ = self.update_edge(&graph_name, edge).await;
-      }
-      WriteOperation::DeleteGraph(graph_name) => {
-        let _ = self.delete_graph(&graph_name).await;
-      }
-      WriteOperation::DeleteNode(graph_name, node_id) => {
-        let _ = self.delete_node(&graph_name, node_id).await;
-      }
-      WriteOperation::DeleteEdge(graph_name, edge_id) => {
-        let _ = self.delete_edge(&graph_name, edge_id).await;
-      }
+      graphs_id_generators: RwLock::new(HashMap::new()),
     }
   }
 
@@ -53,10 +26,20 @@ impl InMemoryStorage {
     graphs.keys().cloned().collect()
   }
 
-  pub async fn create_graph(&self, graph_name: String, grafo: Graph) -> Result<(), ()> {
+  pub async fn create_graph(&self, graph_name: String) -> Result<Graph, ()> {
+    let id_generator = Arc::new(IdGenerator::new());
+    let graph = Graph::new(graph_name.clone(), Arc::clone(&id_generator));
+
     let mut graphs = self.graphs.write().await;
-    graphs.insert(graph_name, grafo);
-    Ok(())
+    graphs.insert(graph_name.clone(), graph.clone());
+
+    self
+      .graphs_id_generators
+      .write()
+      .await
+      .insert(graph_name, id_generator);
+
+    Ok(graph)
   }
 
   pub async fn get_graph(&self, graph_name: &str) -> Option<Graph> {

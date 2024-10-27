@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::lib::graph::{edge::Edge, node::Node, Graph};
@@ -8,8 +6,7 @@ use super::{disk_storage::DiskStorage, in_memory_storage::InMemoryStorage};
 
 pub struct StorageManager {
   disk_storage: DiskStorage,
-  in_memory_storage: Arc<InMemoryStorage>,
-  write_queue_mem: Sender<WriteOperation>,
+  in_memory_storage: InMemoryStorage,
   write_queue_disk: Sender<WriteOperation>,
 }
 
@@ -26,36 +23,20 @@ pub enum WriteOperation {
 
 impl StorageManager {
   pub fn new() -> Self {
-    let (write_queue_mem, write_queue_mem_rx) = mpsc::channel(100);
     let (write_queue_disk, write_queue_disk_rx) = mpsc::channel(100);
 
     let manager = Self {
       disk_storage: DiskStorage::new().expect("Failed to initialize disk storage"),
-      in_memory_storage: Arc::new(InMemoryStorage::new()),
-      write_queue_mem,
+      in_memory_storage: InMemoryStorage::new(),
       write_queue_disk,
     };
 
-    manager.start_write_workers(write_queue_mem_rx, write_queue_disk_rx);
+    manager.start_write_workers(write_queue_disk_rx);
 
     manager
   }
 
-  fn start_write_workers(
-    &self,
-    mut write_queue_mem_rx: Receiver<WriteOperation>,
-    mut write_queue_disk_rx: Receiver<WriteOperation>,
-  ) {
-    let in_memory_storage_clone = Arc::clone(&self.in_memory_storage);
-
-    tokio::spawn(async move {
-      while let Some(operation) = write_queue_mem_rx.recv().await {
-        in_memory_storage_clone
-          .process_write_operation(operation)
-          .await;
-      }
-    });
-
+  fn start_write_workers(&self, mut write_queue_disk_rx: Receiver<WriteOperation>) {
     tokio::spawn(async move {
       while let Some(operation) = write_queue_disk_rx.recv().await {
         DiskStorage::new()
@@ -90,31 +71,27 @@ impl StorageManager {
     }
   }
 
-  pub async fn create_graph(&self, graph_name: String, graph: Graph) {
-    self
-      .write_queue_mem
-      .send(WriteOperation::CreateGraph(
-        graph_name.clone(),
-        graph.clone(),
-      ))
+  pub async fn create_graph(&self, graph_name: String) {
+    let graph = self
+      .in_memory_storage
+      .create_graph(graph_name.clone())
       .await
       .unwrap();
+
     self
       .write_queue_disk
-      .send(WriteOperation::CreateGraph(
-        graph_name.clone(),
-        graph.clone(),
-      ))
+      .send(WriteOperation::CreateGraph(graph_name.clone(), graph))
       .await
       .unwrap();
   }
 
   pub async fn add_node(&self, graph_name: String, node: Node) {
     self
-      .write_queue_mem
-      .send(WriteOperation::AddNode(graph_name.clone(), node.clone()))
+      .in_memory_storage
+      .add_node(&graph_name, node.clone())
       .await
       .unwrap();
+
     self
       .write_queue_disk
       .send(WriteOperation::AddNode(graph_name, node))
@@ -124,10 +101,11 @@ impl StorageManager {
 
   pub async fn add_edge(&self, graph_name: String, edge: Edge) {
     self
-      .write_queue_mem
-      .send(WriteOperation::AddEdge(graph_name.clone(), edge.clone()))
+      .in_memory_storage
+      .add_edge(&graph_name, edge.clone())
       .await
       .unwrap();
+
     self
       .write_queue_disk
       .send(WriteOperation::AddEdge(graph_name, edge))
@@ -137,10 +115,11 @@ impl StorageManager {
 
   pub async fn delete_graph(&self, graph_name: String) {
     self
-      .write_queue_mem
-      .send(WriteOperation::DeleteGraph(graph_name.clone()))
+      .in_memory_storage
+      .delete_graph(&graph_name)
       .await
       .unwrap();
+
     self
       .write_queue_disk
       .send(WriteOperation::DeleteGraph(graph_name))
@@ -150,8 +129,8 @@ impl StorageManager {
 
   pub async fn delete_node(&self, graph_name: String, node_id: usize) {
     self
-      .write_queue_mem
-      .send(WriteOperation::DeleteNode(graph_name.clone(), node_id))
+      .in_memory_storage
+      .delete_node(&graph_name, node_id)
       .await
       .unwrap();
     self
@@ -163,8 +142,8 @@ impl StorageManager {
 
   pub async fn delete_edge(&self, graph_name: String, edge_id: usize) {
     self
-      .write_queue_mem
-      .send(WriteOperation::DeleteEdge(graph_name.clone(), edge_id))
+      .in_memory_storage
+      .delete_edge(&graph_name, edge_id)
       .await
       .unwrap();
     self

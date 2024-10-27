@@ -26,6 +26,4 @@ impl Edge {
       properties,
     }
   }
-
-  // CRUD operations for Edge can be added here
 }

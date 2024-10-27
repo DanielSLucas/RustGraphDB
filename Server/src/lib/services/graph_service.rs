@@ -23,9 +23,7 @@ impl GraphService {
       return Err(GraphError::GraphAlreadyExists(name));
     }
 
-    let graph = Graph::new(name.clone());
-
-    let _ = self.storage_manager.create_graph(name, graph).await;
+    let _ = self.storage_manager.create_graph(name).await;
 
     Ok(())
   }
@@ -37,43 +35,24 @@ impl GraphService {
   pub async fn add_node(
     &self,
     graph_name: String,
-    node_id: Option<usize>,
     label: String,
     properties: HashMap<String, String>,
   ) -> GraphResult<Node> {
     let mut graph = self.get_graph(&graph_name).await?;
 
-    if node_id.is_none() {
-      let node = graph.add_node(label, properties);
-
-      self
-        .storage_manager
-        .add_node(graph_name, node.clone())
-        .await;
-
-      return Ok(node);
-    }
-
-    let node_id = node_id.unwrap();
-
-    if graph.get_node(node_id).is_some() {
-      return Err(GraphError::NodeAlreadyExists(node_id));
-    }
-
-    let node = Node::new(node_id, label, properties);
+    let node = graph.add_node(label, properties);
 
     self
       .storage_manager
       .add_node(graph_name, node.clone())
       .await;
 
-    Ok(node)
+    return Ok(node);
   }
 
   pub async fn add_edge(
     &self,
     graph_name: String,
-    edge_id: Option<usize>,
     from: usize,
     to: usize,
     label: String,
@@ -88,31 +67,14 @@ impl GraphService {
       return Err(GraphError::NodeNotFound(to));
     }
 
-    if edge_id.is_none() {
-      let edge = graph.add_edge(label, from, to, properties);
-
-      self
-        .storage_manager
-        .add_edge(graph_name, edge.clone())
-        .await;
-
-      return Ok(edge);
-    }
-
-    let edge_id = edge_id.unwrap();
-
-    if graph.get_edge(edge_id).is_some() {
-      return Err(GraphError::EdgeAlreadyExists(edge_id));
-    }
-
-    let edge = Edge::new(edge_id, label, from, to, properties);
+    let edge = graph.add_edge(label, from, to, properties);
 
     self
       .storage_manager
       .add_edge(graph_name, edge.clone())
       .await;
 
-    Ok(edge)
+    return Ok(edge);
   }
 
   pub async fn get_graph_adjacency(
