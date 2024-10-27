@@ -1,11 +1,13 @@
 use serde::Deserialize;
 use std::error::Error;
+use rand::Rng; // Importa o módulo para geração de números aleatórios
 
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct Node {
     pub Node_ID: usize,
-    pub Node: String
+    pub Node: String,
 }
+
 #[derive(Clone)]
 pub struct CSVReaderNode {
     records: Vec<Node>, // Armazena os registros lidos
@@ -35,4 +37,19 @@ impl CSVReaderNode {
     pub fn len(&self) -> usize {
         self.records.len()
     }
+
+    // Retorna um ID aleatório de Node
+    pub fn random_node_id(&self) -> usize {
+        if self.records.is_empty() {
+            return 0; // Retorna um ID padrão (por exemplo, 0) se não houver registros
+        }
+        
+        // Gera um índice aleatório dentro do intervalo válido
+        let mut rng = rand::thread_rng();
+        let random_index = rng.gen_range(0..self.records.len());
+        
+        // Retorna o Node_ID correspondente
+        self.records[random_index].Node_ID
+    }
 }
+

@@ -126,24 +126,17 @@ impl GraphService {
   pub async fn get_graph_relations(
     &self,
     graph_name: String,
-  ) -> GraphResult<Vec<(usize, String, String, usize, String)>> {
+) -> GraphResult<Vec<(usize, String, String, usize, String)>> {
     let graph = self.get_graph(&graph_name).await?;
-    let mut relations = Vec::new();
+    let relations_map = graph.relations_list();
 
-    for edge in graph.edges().values() {
-      let from_node = graph.get_node(edge.from).unwrap();
-      let to_node = graph.get_node(edge.to).unwrap();
-
-      relations.push((
-        from_node.id,
-        from_node.label.clone(),
-        edge.label.clone(),
-        to_node.id,
-        to_node.label.clone(),
-      ));
+    // Converte o HashMap em um Vec de todas as relações
+    let mut relations_vec = Vec::new();
+    for relations in relations_map.values() {
+        relations_vec.extend(relations.clone());
     }
 
-    Ok(relations)
+    Ok(relations_vec)
   }
 
   pub async fn search_path(
@@ -152,11 +145,12 @@ impl GraphService {
     method: String,
     origin: usize,
     goal: usize,
+    property_name: String,
   ) -> GraphResult<Vec<usize>> {
     match method.as_str() {
       "bfs" => self.bfs_path(graph_name, origin, goal).await,
       "dfs" => self.dfs_path(graph_name, origin, goal).await,
-      "dijkstra" => self.dijkstra_path(graph_name, origin, goal).await,
+      "dijkstra" => self.dijkstra_path(graph_name, origin, goal, property_name).await,
       _ => Err(GraphError::MethodNotSupported(method)),
     }
   }
@@ -185,11 +179,15 @@ impl GraphService {
 
   pub async fn dijkstra_path(
     &self,
-    _graph_name: String,
-    _origin: usize,
-    _goal: usize,
+    graph_name: String,
+    origin: usize,
+    goal: usize,
+    property_name: String,
   ) -> GraphResult<Vec<usize>> {
-    unimplemented!();
+    let graph = self.get_graph(&graph_name).await?;
+
+    let path = graph.dijkstra(origin, goal, property_name, TAM_MIN_GRPAH);
+    Ok(path)
   }
 
   pub async fn get_graph(&self, graph_name: &str) -> GraphResult<Graph> {

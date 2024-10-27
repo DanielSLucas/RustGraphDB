@@ -71,8 +71,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         client: client.clone(), 
         base_url: base_url.clone(), 
         graph_name: graph_name.clone(), 
-        max_edges: csv_reader_nodes.len(),
-        num_search: 100
+        data: Arc::new(csv_reader_nodes.clone()),
+        num_search: 10000
     };
 
     match search_server.search().await {

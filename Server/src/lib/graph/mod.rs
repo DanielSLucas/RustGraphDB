@@ -44,19 +44,35 @@ impl Graph {
   pub fn adjacency_list(&self) -> HashMap<usize, Vec<usize>> {
     let mut adj = HashMap::new();
 
-    for (_k, edge) in self.edges() {
-      if !adj.contains_key(&edge.from) {
-        let mut connected_nodes = Vec::new();
-        connected_nodes.push(edge.to);
-        adj.insert(edge.from, connected_nodes);
-      } else {
-        let mut connected_nodes = adj.get(&edge.id).unwrap().to_vec();
-        connected_nodes.push(edge.to);
-        adj.insert(edge.from, connected_nodes);
-      }
+    for edge in self.edges().values() {
+        // Insere o nó `to` no vetor de adjacência do nó `from`
+        adj.entry(edge.from)
+            .or_insert_with(Vec::new)
+            .push(edge.to);
     }
 
     adj
+  }
+
+  pub fn relations_list(&self) -> HashMap<usize, Vec<(usize, String, String, usize, String)>> {
+    let mut edges = HashMap::new();
+
+    for edge in self.edges().values() {
+        if let (Some(from_node), Some(to_node)) = (self.get_node(edge.from), self.get_node(edge.to)) {
+            // Adiciona a relação diretamente em `edges` por id do nó de origem
+            edges.entry(from_node.id)
+                .or_insert_with(Vec::new)
+                .push((
+                    from_node.id,
+                    from_node.label.clone(),
+                    edge.label.clone(),
+                    to_node.id,
+                    to_node.label.clone(),
+                ));
+        }
+    }
+
+    edges
   }
 
   // NODES CRUD

@@ -277,6 +277,7 @@ struct GraphPath {
 struct GraphSearchQueryParams {
   origin: usize,
   goal: usize,
+  property_name: Option<String>,
 }
 
 #[get("/{graph_name}/{search_method}")]
@@ -288,9 +289,10 @@ async fn graph_search(
   let (graph_name, search_method) = path.into_inner();
   let origin = query.origin;
   let goal = query.goal;
+  let property_name = query.property_name.clone().unwrap_or_else(String::new);
 
   let result = graph_service
-    .search_path(graph_name.clone(), search_method.clone(), origin, goal)
+    .search_path(graph_name.clone(), search_method.clone(), origin, goal, property_name)
     .await;
 
   match result {
