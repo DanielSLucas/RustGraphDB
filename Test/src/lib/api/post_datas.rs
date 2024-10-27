@@ -26,7 +26,7 @@ impl GraphService {
 
         // Cria o grafo
         self.create_graph().await?;
-        text_log.push_str("Graph created successfully.\n");
+        text_log.push_str("Graph created successfully.\n------------------------------------\n");
 
         // Adiciona os nós
         text_log.push_str(&self.add_nodes_concurrently().await?);
@@ -35,7 +35,7 @@ impl GraphService {
         text_log.push_str(&self.add_edges_concurrently().await?);
 
         let finish = Instant::now();
-        let execution_time = format!("Tempo de execução total: {:.2?}\n", finish.duration_since(start));
+        let execution_time = format!("Tempo de execução total: {:.2?}\n------------------------------------", finish.duration_since(start));
         text_log.push_str(&execution_time);
         println!("{}", execution_time);
 

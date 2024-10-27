@@ -13,6 +13,8 @@ use testServer::lib::data::{reader_edges::CSVReaderEdge, reader_nodes::CSVReader
 use testServer::lib::api::{post_datas::GraphService, get_relations::{Graph, Relation},get_search_server::SearchServer};
 use testServer::lib::log::write_log::TextLogger;
 
+const QTD_BUSCAS: usize = 1000;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 
@@ -61,7 +63,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match graph_service.post_graph().await {
         Ok(log_text) => {
             logger.log(log_text).await;
-            logger.log("Grafo criado e nós/arestas adicionados com sucesso.".to_string()).await;
+            logger.log("Grafo criado e nós/arestas adicionados com sucesso.\n------------------------------------".to_string()).await;
         },
         Err(e) => {
             logger.log(format!("Erro ao criar grafo ou adicionar nós/arestas: {:?}", e)).await;
@@ -75,14 +77,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         base_url: base_url.clone(), 
         graph_name: graph_name.clone(), 
         data: Arc::new(csv_reader_nodes.clone()),
-        num_search: 10000,
+        num_search: QTD_BUSCAS,
         edges: Arc::new(csv_reader_edges.clone())
     };
 
     match search_server.search().await {
         Ok(log_text) => {
             logger.log(log_text).await;
-            logger.log("Busca BFS realizada com sucesso.".to_string()).await;
+            logger.log("Buscas realizadas com sucesso.\n------------------------------------".to_string()).await;
         },
         Err(e) => {
             logger.log(format!("Erro na busca BFS: {:?}", e)).await;
