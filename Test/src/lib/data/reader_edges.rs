@@ -3,6 +3,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use std::error::Error;
 use tokio::task;
+use rand::Rng;
 
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct Edge {
@@ -41,5 +42,14 @@ impl CSVReaderEdge {
     // Retorna o número de registros
     pub fn len(&self) -> usize {
         self.records.len()
+    }
+
+    // Retorna um dos últimos 3 atributos de forma aleatória
+    pub fn random_last_attribute(&self) -> String {
+        let mut rng = rand::thread_rng();
+        let propriedades = ["Distance_km", "Travel_time_min", "Congestion_level"];
+        let index = rng.gen_range(0..propriedades.len());
+
+        propriedades[index].to_string()
     }
 }

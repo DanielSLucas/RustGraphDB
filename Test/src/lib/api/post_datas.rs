@@ -1,6 +1,10 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc, time::Instant};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 use tokio::task;
 use crate::lib::data::{reader_edges::CSVReaderEdge, reader_nodes::CSVReaderNode};
 
@@ -9,8 +13,9 @@ pub struct GraphService {
     pub client: Arc<Client>,
     pub base_url: String,
     pub graph_name: String,
-    pub data_nodes: Arc<CSVReaderNode>, 
-    pub data_edges: Arc<CSVReaderEdge>, 
+    pub data_nodes: Arc<CSVReaderNode>,
+    pub data_edges: Arc<CSVReaderEdge>,
+    pub nodes_id: Arc<Mutex<HashMap<usize, usize>>>
 }
 
 impl GraphService {
@@ -64,6 +69,7 @@ impl GraphService {
         let base_url = self.base_url.clone();
         let graph_name = self.graph_name.clone();
         let data = self.data_nodes.clone();
+        let nodes_id = Arc::clone(&self.nodes_id); // Usando Arc e Mutex para acesso seguro
 
         let start = Instant::now();
         let mut nodes_log = String::new();
@@ -72,8 +78,9 @@ impl GraphService {
         let tasks: Vec<_> = data.iter().enumerate().map(|(_, record)| {
             let client = client.clone();
             let base_url = base_url.clone();
-            let node_id = record.Node_ID.clone();
             let label = record.Node.clone();
+            let id_node = record.Node_ID; // Supondo que este seja do tipo usize
+            let nodes_id = Arc::clone(&nodes_id);
 
             let node_url = format!("{}/graphs/{}/nodes", base_url, graph_name);
 
@@ -81,14 +88,30 @@ impl GraphService {
                 let res = client
                     .post(&node_url)
                     .json(&serde_json::json!({
-                        "node_id": node_id,
                         "label": label
                     }))
                     .send()
                     .await;
 
-                if let Err(e) = res {
-                    eprintln!("Failed to add node (ID: {}, Label: {}): {:?}", node_id, label, e);
+                match res {
+                    Ok(response) => {
+                        if response.status().is_success() {
+                            // Parse o JSON para obter o id
+                            let json: serde_json::Value = response.json().await.unwrap();
+                            if let Some(id) = json.get("id") {
+                                // Insere a label e o id no HashMap
+                                let mut id_map = nodes_id.lock().unwrap(); // Bloqueia para acesso seguro
+                                if let Some(id_value) = id.as_u64() {
+                                    id_map.insert(id_node, id_value as usize); // Insere no dicionário
+                                }
+                            }
+                        } else {
+                            eprintln!("Failed to add node (Label: {}): {:?}", label, response.status());
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to add node (Label: {}): {:?}", label, e);
+                    }
                 }
             })
         }).collect();
@@ -115,47 +138,64 @@ impl GraphService {
         let base_url = self.base_url.clone();
         let graph_name = self.graph_name.clone();
         let data = self.data_edges.clone();
-
+        let nodes_id = Arc::clone(&self.nodes_id); // Clonando o Arc para acesso seguro
+    
         let start = Instant::now();
         let mut edges_log = String::new();
-
+    
         let tasks: Vec<_> = data.iter().enumerate().map(|(index, record)| {
             let client = client.clone();
             let base_url = base_url.clone();
             let label = record.Street.clone();
             let from = record.From.clone();
             let to = record.To.clone();
-
+            let nodes_id = Arc::clone(&nodes_id); // Clone do Arc para cada task
+    
             let mut properties = HashMap::new();
             properties.insert("Distance_km", record.Distance_km.clone().to_string());
             properties.insert("Travel_time_min", record.Travel_time_min.clone().to_string());
             properties.insert("Congestion_level", record.Congestion_level.clone().to_string());
-
+    
             let edge_url = format!("{}/graphs/{}/edges", base_url, graph_name);
-
+    
             task::spawn(async move {
-                let res = client
-                    .post(&edge_url)
-                    .json(&serde_json::json!({
-                        "label": label,
-                        "from": from,
-                        "to": to,
-                        "properties": properties
-                    }))
-                    .send()
-                    .await;
-
-                if let Err(e) = res {
-                    eprintln!("Failed to add edge (ID: {}): {:?}", index, e);
+                // Bloqueia o mutex para acessar o HashMap de nodes_id
+                let from_id: Option<usize>;
+                let to_id: Option<usize>;
+    
+                {
+                    let id_map = nodes_id.lock().unwrap(); // Bloqueia o mutex
+                    from_id = id_map.get(&from).cloned(); // Busca o ID de 'from'
+                    to_id = id_map.get(&to).cloned(); // Busca o ID de 'to'
+                } // O mutex é liberado aqui
+    
+                // Verifica se ambos os IDs foram encontrados
+                if let (Some(from_id), Some(to_id)) = (from_id, to_id) {
+                    let res = client
+                        .post(&edge_url)
+                        .json(&serde_json::json!({
+                            "label": label,
+                            "from": from_id,
+                            "to": to_id,
+                            "properties": properties
+                        }))
+                        .send()
+                        .await;
+    
+                    if let Err(e) = res {
+                        eprintln!("Failed to add edge (ID: {}): {:?}", index, e);
+                    }
+                } else {
+                    eprintln!("Failed to find node IDs for from: {}, to: {}", from, to);
                 }
             })
         }).collect();
-
+    
         // Aguarda todas as tasks terminarem
         for task in tasks {
             let _ = task.await;
         }
-
+    
         let finish = Instant::now();
         let time_execute = finish.duration_since(start);
         edges_log.push_str(&format!(
@@ -165,6 +205,6 @@ impl GraphService {
             data.len()
         ));
         Ok(edges_log)
-    }
+    }    
 }
 

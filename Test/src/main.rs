@@ -6,6 +6,8 @@ use tokio::task;
 use chrono::Utc;
 use std::path::{Path, PathBuf};
 use std::env;
+use std::collections::HashMap;
+use std::sync::{Mutex};
 
 use testServer::lib::data::{reader_edges::CSVReaderEdge, reader_nodes::CSVReaderNode};
 use testServer::lib::api::{post_datas::GraphService, get_relations::{Graph, Relation},get_search_server::SearchServer};
@@ -45,6 +47,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         graph_name: graph_name.clone(), 
         data_nodes: Arc::new(csv_reader_nodes.clone()),
         data_edges: Arc::new(csv_reader_edges.clone()),
+        nodes_id: Arc::new(Mutex::new(HashMap::new())),
     };
 
     let base_dir_log: PathBuf = current_dir.join("logs");
@@ -72,7 +75,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         base_url: base_url.clone(), 
         graph_name: graph_name.clone(), 
         data: Arc::new(csv_reader_nodes.clone()),
-        num_search: 10000
+        num_search: 10000,
+        edges: Arc::new(csv_reader_edges.clone())
     };
 
     match search_server.search().await {
