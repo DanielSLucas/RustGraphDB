@@ -1,1 +1,0 @@
-/home/vitor/RustGraphDB/Seed/target/debug/libseedDataFrame.rlib: /home/vitor/RustGraphDB/Seed/src/lib/api/mod.rs /home/vitor/RustGraphDB/Seed/src/lib/api/rest.rs /home/vitor/RustGraphDB/Seed/src/lib/data/mod.rs /home/vitor/RustGraphDB/Seed/src/lib/data/reader_edges.rs /home/vitor/RustGraphDB/Seed/src/lib/data/reader_nodes.rs /home/vitor/RustGraphDB/Seed/src/lib.rs
