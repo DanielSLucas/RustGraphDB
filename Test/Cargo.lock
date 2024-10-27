@@ -761,18 +761,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "seedDataFrame"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "csv",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "serde"
 version = "1.0.210"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -905,6 +893,18 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "testServer"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "csv",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

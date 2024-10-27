@@ -1,5 +1,5 @@
 [package]
-name = "seedDataFrame"
+name = "testServer"
 version = "0.1.0"
 edition = "2021"
 
