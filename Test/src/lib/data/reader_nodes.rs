@@ -1,12 +1,12 @@
 use serde::Deserialize;
 use std::error::Error;
 
-#[derive(Debug, Deserialize, serde::Serialize)]
+#[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct Node {
     pub Node_ID: usize,
     pub Node: String
 }
-
+#[derive(Clone)]
 pub struct CSVReaderNode {
     records: Vec<Node>, // Armazena os registros lidos
 }

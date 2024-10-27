@@ -10,3 +10,4 @@ serde = { version = "1.0", features = ["derive"] }
 csv = "1.1"
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["unstable-locales"] }
+rand = "0.8"  # Use the latest version available

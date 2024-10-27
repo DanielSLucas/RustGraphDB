@@ -4,21 +4,29 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::task;
 use chrono::Utc;
+use std::path::{Path, PathBuf};
+use std::env;
 
-use seedDataFrame::lib::data::{reader_edges::CSVReaderEdge, reader_nodes::CSVReaderNode};
-use seedDataFrame::lib::api::rest::GraphService;
+use testServer::lib::data::{reader_edges::CSVReaderEdge, reader_nodes::CSVReaderNode};
+use testServer::lib::api::{post_datas::GraphService, /*get_relations::{Graph, Relation},*/ get_search_server::SearchServer};
+use testServer::lib::log::write_log::TextLogger;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let file_path_nodes = "nodes.csv";
+
+    let current_dir = env::current_dir()?;
+    let base_dir: PathBuf = current_dir.join("databases");
+
+    let nodes_file = "nodes.csv";
+    let edges_file = "edges.csv";
+
+    // Constrói os caminhos completos usando Path
+    let file_path_nodes = base_dir.join(nodes_file);
+    let file_path_edges = base_dir.join(edges_file);
 
     // Lê os dados do CSV de forma assíncrona
-    let csv_reader_nodes = CSVReaderNode::read_csv(file_path_nodes).await?; // Lê os dados e armazena em um CSVReader
-
-    let file_path_edges = "edges.csv";
-
-    // Lê os dados do CSV de forma assíncrona
-    let csv_reader_edges = CSVReaderEdge::read_csv(file_path_edges).await?; // Lê os dados e armazena em um CSVReader
+    let csv_reader_nodes = CSVReaderNode::read_csv(file_path_nodes.to_str().unwrap()).await?; 
+    let csv_reader_edges = CSVReaderEdge::read_csv(file_path_edges.to_str().unwrap()).await?; 
 
     // Inicializa o cliente HTTP
     let client = Arc::new(Client::new());
@@ -28,19 +36,63 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let graph_name = format!("some_graph_{}", timestamp);
 
     // Define a URL base da API para onde os dados serão enviados
-    let base_url = "http://localhost:8080".to_string();
+    let base_url = "http://localhost:9999".to_string();
 
     // Cria o GraphService com o cliente HTTP e URL base
     let graph_service = GraphService {
-        client,
-        base_url,
-        graph_name,
-        data_nodes: Arc::new(csv_reader_nodes),
-        data_edges: Arc::new(csv_reader_edges)
+        client: client.clone(), 
+        base_url: base_url.clone(), 
+        graph_name: graph_name.clone(), 
+        data_nodes: Arc::new(csv_reader_nodes.clone()),
+        data_edges: Arc::new(csv_reader_edges.clone()),
     };
 
-    // Envia os dados do CSV para os endpoints da API de forma simultânea
-    graph_service.post_graph().await?;
+    let base_dir_log: PathBuf = current_dir.join("logs");
+    // Configura o nome do arquivo de log e inicializa o logger
+    let log_file_path = base_dir_log.join(format!("{}_output.txt", graph_name));
+    let logger = TextLogger::new(log_file_path.to_str().unwrap_or_default().to_string());
 
+    // Loga o início da execução
+    logger.log(format!("Iniciando criação do grafo '{}'", graph_name)).await;
+
+    // Envia os dados do CSV para os endpoints da API de forma simultânea
+    match graph_service.post_graph().await {
+        Ok(log_text) => {
+            logger.log(log_text).await;
+            logger.log("Grafo criado e nós/arestas adicionados com sucesso.".to_string()).await;
+        },
+        Err(e) => {
+            logger.log(format!("Erro ao criar grafo ou adicionar nós/arestas: {:?}", e)).await;
+            return Err(e);
+        }
+    };
+
+    // Configura o SearchServer para buscar relações no grafo
+    let search_server = SearchServer {
+        client: client.clone(), 
+        base_url: base_url.clone(), 
+        graph_name: graph_name.clone(), 
+        max_edges: csv_reader_nodes.len(),
+        num_search: 100
+    };
+
+
+    match search_server.search().await {
+        Ok(log_text) => {
+            logger.log(log_text).await;
+            logger.log("Busca BFS realizada com sucesso.".to_string()).await;
+        },
+        Err(e) => {
+            logger.log(format!("Erro na busca BFS: {:?}", e)).await;
+        return Err(e);
+        }
+    };
+
+    // Finaliza e salva o log
+    logger.log("Execução completa.".to_string()).await;
+
+    logger.write_to_file().await?;
+    
     Ok(())
 }
+

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::error::Error;
 use tokio::task;
 
-#[derive(Debug, Deserialize, serde::Serialize)]
+#[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct Edge {
     pub Street: String,
     pub From: usize,
@@ -13,7 +13,7 @@ pub struct Edge {
     pub Travel_time_min: f64,
     pub Congestion_level: f64,
 }
-
+#[derive(Clone)]
 pub struct CSVReaderEdge {
     records: Vec<Edge>, // Armazena os registros lidos
 }
