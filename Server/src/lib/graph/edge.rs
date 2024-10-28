@@ -27,3 +27,22 @@ impl Edge {
     }
   }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateEdgeDTO {
+  pub label: String,
+  pub from: usize,
+  pub to: usize,
+  pub properties: HashMap<String, String>,
+}
+
+impl CreateEdgeDTO {
+  pub fn new(label: String, from: usize, to: usize, properties: HashMap<String, String>) -> Self {
+    Self {
+      label,
+      from,
+      to,
+      properties,
+    }
+  }
+}

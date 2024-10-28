@@ -18,8 +18,8 @@ pub async fn run_server(storage_manager: Arc<StorageManager>) -> std::io::Result
           .service(handlers::list_graphs)
           .service(handlers::get_graph)
           .service(handlers::create_graph)
-          .service(handlers::add_node)
-          .service(handlers::add_edge)
+          .service(handlers::add_nodes)
+          .service(handlers::add_edges)
           .service(handlers::get_graph_adjacency)
           .service(handlers::get_graph_relations)
           .service(handlers::graph_search),

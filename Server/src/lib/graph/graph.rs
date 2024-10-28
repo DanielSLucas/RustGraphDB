@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use crate::lib::storage::id_generator::IdGenerator;
 
-use super::edge::Edge;
-use super::node::Node;
+use super::edge::{CreateEdgeDTO, Edge};
+use super::node::{CreateNodeDTO, Node};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
@@ -69,8 +69,12 @@ impl Graph {
   }
 
   // NODES CRUD
-  pub fn add_node(&mut self, label: String, properties: HashMap<String, String>) -> Node {
-    let node = Node::new(self.id_generator.generate_node_id(), label, properties);
+  pub fn add_node(&mut self, data: &CreateNodeDTO) -> Node {
+    let node = Node::new(
+      self.id_generator.generate_node_id(),
+      data.label.clone(),
+      data.properties.clone(),
+    );
     self.nodes.insert(node.id, node.clone());
     node
   }
@@ -96,19 +100,13 @@ impl Graph {
   }
 
   // EDGES CRUD
-  pub fn add_edge(
-    &mut self,
-    label: String,
-    from: usize,
-    to: usize,
-    properties: HashMap<String, String>,
-  ) -> Edge {
+  pub fn add_edge(&mut self, data: &CreateEdgeDTO) -> Edge {
     let edge = Edge::new(
       self.id_generator.generate_edge_id(),
-      label,
-      from,
-      to,
-      properties,
+      data.label.clone(),
+      data.from,
+      data.to,
+      data.properties.clone(),
     );
     self.edges.insert(edge.id, edge.clone());
     edge

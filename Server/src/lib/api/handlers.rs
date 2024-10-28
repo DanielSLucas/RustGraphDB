@@ -1,10 +1,13 @@
 use actix_web::{get, post, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
 use crate::lib::errors::graph_error::GraphError;
+use crate::lib::graph::edge::CreateEdgeDTO;
+use crate::lib::graph::node::CreateNodeDTO;
 use crate::lib::services::graph_service::GraphService;
 use crate::lib::utils::logger::{log_error, log_info};
 
@@ -80,35 +83,25 @@ async fn create_graph(
 
 #[derive(Deserialize)]
 struct AddNodeRequest {
-  label: String,
-  properties: Option<HashMap<String, String>>,
+  nodes: Vec<CreateNodeDTO>,
 }
 
 #[post("/{graph_name}/nodes")]
-async fn add_node(
+async fn add_nodes(
   graph_service: web::Data<Arc<GraphService>>,
   path: web::Path<String>,
   request: web::Json<AddNodeRequest>,
 ) -> impl Responder {
   let graph_name = path.clone();
-  let label = request.label.clone();
-  let properties: HashMap<String, String> =
-    request.properties.clone().unwrap_or_else(|| HashMap::new());
+  let nodes = request.nodes.clone();
 
-  let start = Instant::now();
-
-  match graph_service
-    .add_node(graph_name.clone(), label, properties)
-    .await
-  {
-    Ok(node) => {
-      let finish = Instant::now();
-      let duration = finish.duration_since(start);
+  match graph_service.add_nodes(graph_name.clone(), nodes).await {
+    Ok(nodes) => {
       log_info(&format!(
-        "Node {} added to graph '{}' via REST API. +{:?}",
-        node.id, graph_name, duration
+        "Nodes added to graph '{}' via REST API.",
+        graph_name
       ));
-      HttpResponse::Ok().json(node)
+      HttpResponse::Ok().json(json!({ "nodes": nodes }))
     }
     Err(GraphError::NodeAlreadyExists(id)) => {
       log_error(&format!(
@@ -130,35 +123,25 @@ async fn add_node(
 
 #[derive(Deserialize)]
 struct AddEdgeRequest {
-  from: usize,
-  to: usize,
-  label: String,
-  properties: Option<HashMap<String, String>>,
+  edges: Vec<CreateEdgeDTO>,
 }
 
 #[post("/{graph_name}/edges")]
-async fn add_edge(
+async fn add_edges(
   graph_service: web::Data<Arc<GraphService>>,
   path: web::Path<String>,
   request: web::Json<AddEdgeRequest>,
 ) -> impl Responder {
   let graph_name = path.clone();
-  let from = request.from;
-  let to = request.to;
-  let label = request.label.clone();
-  let properties: HashMap<String, String> =
-    request.properties.clone().unwrap_or_else(|| HashMap::new());
+  let edges = request.edges.clone();
 
-  match graph_service
-    .add_edge(graph_name.clone(), from, to, label, properties)
-    .await
-  {
-    Ok(edge) => {
+  match graph_service.add_edges(graph_name.clone(), edges).await {
+    Ok(edges) => {
       log_info(&format!(
-        "Edge {} added to graph '{}' via REST API.",
-        edge.id, graph_name
+        "Edges added to graph '{}' via REST API.",
+        graph_name
       ));
-      HttpResponse::Ok().json(edge)
+      HttpResponse::Ok().json(json!({ "edges": edges }))
     }
     Err(GraphError::EdgeAlreadyExists(id)) => {
       log_error(&format!(
@@ -288,7 +271,13 @@ async fn graph_search(
   let property_name = query.property_name.clone().unwrap_or_else(String::new);
 
   let result = graph_service
-    .search_path(graph_name.clone(), search_method.clone(), origin, goal, property_name)
+    .search_path(
+      graph_name.clone(),
+      search_method.clone(),
+      origin,
+      goal,
+      property_name,
+    )
     .await;
 
   match result {

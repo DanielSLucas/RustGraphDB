@@ -17,3 +17,15 @@ impl Node {
     }
   }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateNodeDTO {
+  pub label: String,
+  pub properties: HashMap<String, String>,
+}
+
+impl CreateNodeDTO {
+  pub fn new(label: String, properties: HashMap<String, String>) -> Self {
+    Self { label, properties }
+  }
+}

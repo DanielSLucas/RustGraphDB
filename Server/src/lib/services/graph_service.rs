@@ -1,4 +1,6 @@
 use crate::lib::errors::graph_error::GraphError;
+use crate::lib::graph::edge::CreateEdgeDTO;
+use crate::lib::graph::node::CreateNodeDTO;
 use crate::lib::graph::{edge::Edge, node::Node, Graph};
 use crate::lib::storage::StorageManager;
 use std::collections::HashMap;
@@ -32,49 +34,58 @@ impl GraphService {
     Ok(self.storage_manager.list_graph_names().await)
   }
 
-  pub async fn add_node(
+  pub async fn add_nodes(
     &self,
     graph_name: String,
-    label: String,
-    properties: HashMap<String, String>,
-  ) -> GraphResult<Node> {
+    nodes_data: Vec<CreateNodeDTO>,
+  ) -> GraphResult<Vec<Node>> {
     let mut graph = self.get_graph(&graph_name).await?;
 
-    let node = graph.add_node(label, properties);
+    let mut created_nodes = vec![Node::new(1, String::new(), HashMap::new()); nodes_data.len()];
 
-    self
-      .storage_manager
-      .add_node(graph_name, node.clone())
-      .await;
+    for (i, data) in nodes_data.iter().enumerate() {
+      let node = graph.add_node(data);
 
-    return Ok(node);
+      self
+        .storage_manager
+        .add_node(graph_name.clone(), node.clone())
+        .await;
+
+      created_nodes[i] = node;
+    }
+
+    return Ok(created_nodes);
   }
 
-  pub async fn add_edge(
+  pub async fn add_edges(
     &self,
     graph_name: String,
-    from: usize,
-    to: usize,
-    label: String,
-    properties: HashMap<String, String>,
-  ) -> GraphResult<Edge> {
+    edges_data: Vec<CreateEdgeDTO>,
+  ) -> GraphResult<Vec<Edge>> {
     let mut graph = self.get_graph(&graph_name).await?;
 
-    if graph.get_node(from).is_none() {
-      return Err(GraphError::NodeNotFound(from));
+    let mut created_edges =
+      vec![Edge::new(1, String::new(), 0, 0, HashMap::new()); edges_data.len()];
+
+    for (i, data) in edges_data.iter().enumerate() {
+      if graph.get_node(data.from).is_none() {
+        return Err(GraphError::NodeNotFound(data.from));
+      }
+      if graph.get_node(data.to).is_none() {
+        return Err(GraphError::NodeNotFound(data.to));
+      }
+
+      let edge = graph.add_edge(data);
+
+      self
+        .storage_manager
+        .add_edge(graph_name.clone(), edge.clone())
+        .await;
+
+      created_edges[i] = edge;
     }
-    if graph.get_node(to).is_none() {
-      return Err(GraphError::NodeNotFound(to));
-    }
 
-    let edge = graph.add_edge(label, from, to, properties);
-
-    self
-      .storage_manager
-      .add_edge(graph_name, edge.clone())
-      .await;
-
-    return Ok(edge);
+    return Ok(created_edges);
   }
 
   pub async fn get_graph_adjacency(
@@ -88,14 +99,14 @@ impl GraphService {
   pub async fn get_graph_relations(
     &self,
     graph_name: String,
-) -> GraphResult<Vec<(usize, String, String, usize, String)>> {
+  ) -> GraphResult<Vec<(usize, String, String, usize, String)>> {
     let graph = self.get_graph(&graph_name).await?;
     let relations_map = graph.relations_list();
 
     // Converte o HashMap em um Vec de todas as relações
     let mut relations_vec = Vec::new();
     for relations in relations_map.values() {
-        relations_vec.extend(relations.clone());
+      relations_vec.extend(relations.clone());
     }
 
     Ok(relations_vec)
@@ -112,7 +123,11 @@ impl GraphService {
     match method.as_str() {
       "bfs" => self.bfs_path(graph_name, origin, goal).await,
       "dfs" => self.dfs_path(graph_name, origin, goal).await,
-      "dijkstra" => self.dijkstra_path(graph_name, origin, goal, property_name).await,
+      "dijkstra" => {
+        self
+          .dijkstra_path(graph_name, origin, goal, property_name)
+          .await
+      }
       _ => Err(GraphError::MethodNotSupported(method)),
     }
   }
