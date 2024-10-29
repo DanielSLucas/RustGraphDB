@@ -64,12 +64,12 @@ impl SearchServer {
                         *ok_count += 1;
                     }
                     Ok(response) => {
-                        eprintln!("Failed to search {:?} | Origin: {} to Goal: {}", response.status(), origin, goal);
+                        //eprintln!("Failed to search {:?} | Origin: {} to Goal: {}", response.status(), origin, goal);
                         let mut fail_count = search_fail.lock().unwrap();
                         *fail_count += 1;
                     }
                     Err(e) => {
-                        eprintln!("Failed to search {:?} | Origin: {} to Goal: {}", e, origin, goal);
+                        //eprintln!("Failed to search {:?} | Origin: {} to Goal: {}", e, origin, goal);
                         let mut fail_count = search_fail.lock().unwrap();
                         *fail_count += 1;
                     }

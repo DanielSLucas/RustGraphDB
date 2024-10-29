@@ -20,7 +20,7 @@ pub struct GraphService {
 
 impl GraphService {
     // Função principal que cria o grafo e adiciona os nós
-    pub async fn post_graph(&self) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn post_graph(& mut self) -> Result<String, Box<dyn std::error::Error>> {
         let start = Instant::now();
         let mut text_log = String::new();
 
@@ -33,6 +33,16 @@ impl GraphService {
 
         // Adiciona as arestas
         text_log.push_str(&self.add_edges_concurrently().await?);
+
+        self.graph_name = format!("{}_1",self.graph_name);
+        text_log.push_str("Envio Unico:\n------------------------------------\n");
+        self.create_graph().await?;
+
+        // Adiciona os nós
+        text_log.push_str(&self.add_all_nodes().await?);
+
+        // Adiciona as arestas
+        text_log.push_str(&self.add_all_edges().await?);
 
         let finish = Instant::now();
         let execution_time = format!("Tempo de execução total: {:.2?}\n------------------------------------", finish.duration_since(start));
@@ -88,7 +98,7 @@ impl GraphService {
                 let res = client
                     .post(&node_url)
                     .json(&serde_json::json!({
-                        "label": label
+                        "nodes": [{"label": label, "properties": {}}]
                     }))
                     .send()
                     .await;
@@ -98,10 +108,10 @@ impl GraphService {
                         if response.status().is_success() {
                             // Parse o JSON para obter o id
                             let json: serde_json::Value = response.json().await.unwrap();
-                            if let Some(id) = json.get("id") {
+                            if let Some(node) = json.get("nodes") {
                                 // Insere a label e o id no HashMap
                                 let mut id_map = nodes_id.lock().unwrap(); // Bloqueia para acesso seguro
-                                if let Some(id_value) = id.as_u64() {
+                                if let Some(id_value) = node[0]["id"].as_u64() {
                                     id_map.insert(id_node, id_value as usize); // Insere no dicionário
                                 }
                             }
@@ -174,10 +184,10 @@ impl GraphService {
                     let res = client
                         .post(&edge_url)
                         .json(&serde_json::json!({
-                            "label": label,
+                            "edges": [{"label": label,
                             "from": from_id,
                             "to": to_id,
-                            "properties": properties
+                            "properties": properties}]
                         }))
                         .send()
                         .await;
@@ -205,6 +215,129 @@ impl GraphService {
             data.len()
         ));
         Ok(edges_log)
-    }    
+    } 
+
+    pub async fn add_all_nodes(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let client = self.client.clone();
+        let base_url = self.base_url.clone();
+        let graph_name = self.graph_name.clone();
+        let data = self.data_nodes.clone();
+        let nodes_id = Arc::clone(&self.nodes_id); // Usando Arc e Mutex para acesso seguro
+    
+        let start = Instant::now();
+        let mut nodes_log = String::new();
+    
+        let data_vec: Vec<_> = data.iter().map(|record| record.Node_ID).collect(); 
+        // Acumula todos os nós em uma única requisição
+        let nodes_data: Vec<_> = data.iter().map(|record| {
+            serde_json::json!({
+                "label": record.Node,
+                "properties": {}
+            })
+        }).collect();
+    
+        let node_url = format!("{}/graphs/{}/nodes", base_url, graph_name);
+    
+        let res = client
+            .post(&node_url)
+            .json(&serde_json::json!({ "nodes": nodes_data }))
+            .send()
+            .await;
+
+        let finish = Instant::now();
+        let time_execute = finish.duration_since(start).as_millis() as f64;
+    
+        if let Ok(response) = res {
+            if response.status().is_success() {
+                let json: serde_json::Value = response.json().await?;
+                if let Some(nodes) = json.get("nodes") {
+                    let mut id_map = nodes_id.lock().unwrap();
+                    for (i, node) in nodes.as_array().unwrap().iter().enumerate() {
+                        if let Some(id_value) = node["id"].as_u64() {
+                            //println!("{:?}", i);
+                            let node_id = data_vec[i];
+                            id_map.insert(node_id, id_value as usize); // Insere no dicionário
+                        }
+                    }
+                }
+            } else {
+                eprintln!("Failed to add nodes: {:?}", response.status());
+            }
+        }
+    
+        nodes_log.push_str(&format!(
+            "Tempo de execução Envio Unico Nodes: {:.2?} ms\nTempo por Node: {:.2?} ms\nQuantidade de Nodes: {}\n------------------------------------\n",
+            time_execute,
+            time_execute / data.len() as f64,
+            data.len()
+        ));
+
+        println!("{}", nodes_log);
+
+        Ok(nodes_log)
+    }
+    
+    pub async fn add_all_edges(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let client = self.client.clone();
+        let base_url = self.base_url.clone();
+        let graph_name = self.graph_name.clone();
+        let data = self.data_edges.clone();
+        let nodes_id = Arc::clone(&self.nodes_id); // Clonando o Arc para acesso seguro
+    
+        let start = Instant::now();
+        let mut edges_log = String::new();
+    
+        // Acumula todas as arestas em uma única requisição
+        let edges_data: Vec<_> = data.iter().filter_map(|record| {
+            let from_id;
+            let to_id;
+            {
+                let id_map = nodes_id.lock().unwrap();
+                from_id = id_map.get(&record.From).cloned();
+                to_id = id_map.get(&record.To).cloned();
+            }
+            if let (Some(from_id), Some(to_id)) = (from_id, to_id) {
+                Some(serde_json::json!({
+                    "label": record.Street,
+                    "from": from_id,
+                    "to": to_id,
+                    "properties": {
+                        "Distance_km": record.Distance_km.clone().to_string(),
+                        "Travel_time_min": record.Travel_time_min.clone().to_string(),
+                        "Congestion_level": record.Congestion_level.clone().to_string()
+                    }
+                }))
+            } else {
+                eprintln!("Failed to find node IDs for from: {}, to: {}", record.From, record.To);
+                None
+            }
+        }).collect();
+    
+        let edge_url = format!("{}/graphs/{}/edges", base_url, graph_name);
+    
+        let res = client
+            .post(&edge_url)
+            .json(&serde_json::json!({ "edges": edges_data }))
+            .send()
+            .await;
+    
+        if let Err(e) = res {
+            eprintln!("Failed to add edges: {:?}", e);
+        }
+    
+        let finish = Instant::now();
+        let time_execute = finish.duration_since(start);
+        edges_log.push_str(&format!(
+            "Tempo de execução Envio Unico Edges: {:.2?}\nTempo por Edge: {:.2?} ms\nQuantidade de Edges: {}\n------------------------------------\n",
+            time_execute,
+            time_execute.as_millis() as f64 / data.len() as f64,
+            data.len()
+        ));
+
+        println!("{}", edges_log);
+
+        Ok(edges_log)
+    }
+    
 }
 

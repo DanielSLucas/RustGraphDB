@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
   let base_url = "http://localhost:8080".to_string();
 
   // Cria o GraphService com o cliente HTTP e URL base
-  let graph_service = GraphService {
+  let mut graph_service = GraphService {
     client: client.clone(),
     base_url: base_url.clone(),
     graph_name: graph_name.clone(),
@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(log_text) => {
       logger.log(log_text).await;
       logger
-        .log("Busca BFS realizada com sucesso.".to_string())
+        .log("Buscas realizada com sucesso.".to_string())
         .await;
     }
     Err(e) => {
