@@ -152,4 +152,30 @@ impl StorageManager {
       .await
       .unwrap();
   }
+
+  pub async fn update_node(&self, graph_name: String, node: Node) {
+    self
+      .in_memory_storage
+      .update_node(&graph_name, node.clone())
+      .await
+      .unwrap();
+    self
+      .write_queue_disk
+      .send(WriteOperation::UpdateNode(graph_name, node))
+      .await
+      .unwrap();
+  }
+
+  pub async fn update_edge(&self, graph_name: String, edge: Edge) {
+    self
+      .in_memory_storage
+      .update_edge(&graph_name, edge.clone())
+      .await
+      .unwrap();
+    self
+      .write_queue_disk
+      .send(WriteOperation::UpdateEdge(graph_name, edge))
+      .await
+      .unwrap();
+  }
 }

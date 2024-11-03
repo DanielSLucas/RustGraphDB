@@ -57,6 +57,23 @@ impl GraphService {
     return Ok(created_nodes);
   }
 
+  pub async fn update_node(&self, graph_name: String, updated_node: Node) -> GraphResult<Node> {
+    let mut graph = self.get_graph(&graph_name).await?;
+
+    if graph.get_node(updated_node.id).is_none() {
+      return Err(GraphError::NodeNotFound(updated_node.id));
+    }
+
+    graph.update_node(updated_node.clone());
+
+    self
+      .storage_manager
+      .update_node(graph_name.clone(), updated_node.clone())
+      .await;
+
+    Ok(graph.get_node(updated_node.id).unwrap().clone())
+  }
+
   pub async fn add_edges(
     &self,
     graph_name: String,
@@ -86,6 +103,31 @@ impl GraphService {
     }
 
     return Ok(created_edges);
+  }
+
+  pub async fn update_edge(&self, graph_name: String, updated_edge: Edge) -> GraphResult<Edge> {
+    let mut graph = self.get_graph(&graph_name).await?;
+
+    if graph.get_edge(updated_edge.id).is_none() {
+      return Err(GraphError::EdgeNotFound(updated_edge.id));
+    }
+
+    if graph.get_node(updated_edge.from).is_none() {
+      return Err(GraphError::NodeNotFound(updated_edge.from));
+    }
+
+    if graph.get_node(updated_edge.to).is_none() {
+      return Err(GraphError::NodeNotFound(updated_edge.to));
+    }
+
+    graph.update_edge(updated_edge.clone());
+
+    self
+      .storage_manager
+      .update_edge(graph_name.clone(), updated_edge.clone())
+      .await;
+
+    Ok(graph.get_edge(updated_edge.id).unwrap().clone())
   }
 
   pub async fn get_graph_adjacency(

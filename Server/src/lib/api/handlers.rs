@@ -6,8 +6,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::lib::errors::graph_error::GraphError;
-use crate::lib::graph::edge::CreateEdgeDTO;
-use crate::lib::graph::node::CreateNodeDTO;
+use crate::lib::graph::edge::{CreateEdgeDTO, Edge};
+use crate::lib::graph::node::{CreateNodeDTO, Node};
 use crate::lib::services::graph_service::GraphService;
 use crate::lib::utils::logger::{log_error, log_info};
 
@@ -121,6 +121,44 @@ async fn add_nodes(
   }
 }
 
+#[post("/{graph_name}/nodes/{node_id}")]
+async fn update_node(
+  graph_service: web::Data<Arc<GraphService>>,
+  path: web::Path<(String, usize)>,
+  request: web::Json<CreateNodeDTO>,
+) -> impl Responder {
+  let (graph_name, node_id) = path.clone();
+  let label = request.label.clone();
+  let properties = request.properties.clone();
+
+  let node = Node::new(node_id, label, properties);
+
+  match graph_service.update_node(graph_name.clone(), node).await {
+    Ok(node) => {
+      log_info(&format!(
+        "Node '{}' updated in graph '{}' via REST API.",
+        node.id, graph_name
+      ));
+      HttpResponse::Ok().json(json!({ "node": node }))
+    }
+    Err(GraphError::NodeNotFound(id)) => {
+      log_error(&format!(
+        "Node with ID {} does not exist in graph '{}'.",
+        id, graph_name
+      ));
+      HttpResponse::BadRequest().body("Node not found.")
+    }
+    Err(GraphError::GraphNotFound(_)) => {
+      log_error(&format!("Graph '{}' not found.", graph_name));
+      HttpResponse::BadRequest().body("Graph not found.")
+    }
+    Err(e) => {
+      log_error(&format!("{:?}", e));
+      HttpResponse::InternalServerError().body("Internal Server Error")
+    }
+  }
+}
+
 #[derive(Deserialize)]
 struct AddEdgeRequest {
   edges: Vec<CreateEdgeDTO>,
@@ -142,6 +180,53 @@ async fn add_edges(
         graph_name
       ));
       HttpResponse::Ok().json(json!({ "edges": edges }))
+    }
+    Err(GraphError::EdgeAlreadyExists(id)) => {
+      log_error(&format!(
+        "Edge with ID {} already exists in graph '{}'.",
+        id, graph_name
+      ));
+      HttpResponse::BadRequest().body("Edge already exists.")
+    }
+    Err(GraphError::NodeNotFound(id)) => {
+      log_error(&format!(
+        "Node with ID {} does not exist in graph '{}'.",
+        id, graph_name
+      ));
+      HttpResponse::BadRequest().body("Node not found.")
+    }
+    Err(GraphError::GraphNotFound(_)) => {
+      log_error(&format!("Graph '{}' not found.", graph_name));
+      HttpResponse::BadRequest().body("Graph not found.")
+    }
+    Err(e) => {
+      log_error(&format!("{:?}", e));
+      HttpResponse::InternalServerError().body("Internal Server Error")
+    }
+  }
+}
+
+#[post("/{graph_name}/edges/{edge_id}")]
+async fn update_edge(
+  graph_service: web::Data<Arc<GraphService>>,
+  path: web::Path<(String, usize)>,
+  request: web::Json<CreateEdgeDTO>,
+) -> impl Responder {
+  let (graph_name, edge_id) = path.clone();
+  let from = request.from.clone();
+  let to = request.to.clone();
+  let label = request.label.clone();
+  let properties = request.properties.clone();
+
+  let edge = Edge::new(edge_id, label, from, to, properties);
+
+  match graph_service.update_edge(graph_name.clone(), edge).await {
+    Ok(edge) => {
+      log_info(&format!(
+        "Edge '{}' updated in graph '{}' via REST API.",
+        edge.id, graph_name
+      ));
+      HttpResponse::Ok().json(json!({ "edge": edge }))
     }
     Err(GraphError::EdgeAlreadyExists(id)) => {
       log_error(&format!(

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -90,8 +91,11 @@ impl Graph {
 
   pub fn update_node(&mut self, updated_node: Node) {
     if let Some(node) = self.nodes.get_mut(&updated_node.id) {
-      node.properties = updated_node.properties;
       node.label = updated_node.label;
+
+      for (k, v) in updated_node.properties {
+        node.properties.insert(k, v);
+      }
     }
   }
 
@@ -123,8 +127,11 @@ impl Graph {
 
   pub fn update_edge(&mut self, updated_edge: Edge) {
     if let Some(edge) = self.edges.get_mut(&updated_edge.id) {
-      edge.properties = updated_edge.properties;
       edge.label = updated_edge.label;
+
+      for (k, v) in updated_edge.properties {
+        edge.properties.insert(k, v);
+      }
     }
   }
 
