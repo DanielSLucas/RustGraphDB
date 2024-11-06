@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use crate::lib::storage::id_generator::IdGenerator;
 
@@ -11,8 +10,8 @@ use super::node::{CreateNodeDTO, Node};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
   name: String,
-  nodes: HashMap<usize, Node>,
-  edges: HashMap<usize, Edge>,
+  nodes: HashMap<usize, Arc<RwLock<Node>>>,
+  edges: HashMap<usize, Arc<RwLock<Edge>>>,
   id_generator: Arc<IdGenerator>,
 }
 
@@ -31,19 +30,19 @@ impl Graph {
     &self.name
   }
 
-  pub fn nodes(&self) -> &HashMap<usize, Node> {
+  pub fn nodes(&self) -> &HashMap<usize, Arc<RwLock<Node>>> {
     &self.nodes
   }
 
-  pub fn edges(&self) -> &HashMap<usize, Edge> {
+  pub fn edges(&self) -> &HashMap<usize, Arc<RwLock<Edge>>> {
     &self.edges
   }
 
   pub fn adjacency_list(&self) -> HashMap<usize, Vec<usize>> {
     let mut adj = HashMap::new();
 
-    for edge in self.edges().values() {
-      // Insere o nó `to` no vetor de adjacência do nó `from`
+    for arc_edge in self.edges().values() {
+      let edge = arc_edge.read().unwrap();
       adj.entry(edge.from).or_insert_with(Vec::new).push(edge.to);
     }
 
@@ -53,7 +52,8 @@ impl Graph {
   pub fn relations_list(&self) -> HashMap<usize, Vec<(usize, String, String, usize, String)>> {
     let mut edges = HashMap::new();
 
-    for edge in self.edges().values() {
+    for arc_edge in self.edges().values() {
+      let edge = arc_edge.read().unwrap();
       if let (Some(from_node), Some(to_node)) = (self.get_node(edge.from), self.get_node(edge.to)) {
         // Adiciona a relação diretamente em `edges` por id do nó de origem
         edges.entry(from_node.id).or_insert_with(Vec::new).push((
@@ -74,23 +74,33 @@ impl Graph {
     let node = Node::new(
       self.id_generator.generate_node_id(),
       data.label.clone(),
+      data.category.clone(),
       data.properties.clone(),
     );
-    self.nodes.insert(node.id, node.clone());
+    self
+      .nodes
+      .insert(node.id, Arc::new(RwLock::new(node.clone())));
     node
   }
 
   pub fn add_full_node(&mut self, node: Node) -> Node {
-    self.nodes.insert(node.id, node.clone());
+    self
+      .nodes
+      .insert(node.id, Arc::new(RwLock::new(node.clone())));
     node
   }
 
-  pub fn get_node(&self, id: usize) -> Option<&Node> {
-    self.nodes.get(&id)
+  pub fn get_node(&self, id: usize) -> Option<Node> {
+    match self.nodes.get(&id) {
+      Some(node) => Some(node.read().unwrap().clone()),
+      None => None,
+    }
   }
 
   pub fn update_node(&mut self, updated_node: Node) {
-    if let Some(node) = self.nodes.get_mut(&updated_node.id) {
+    if let Some(arc_node) = self.nodes.get_mut(&updated_node.id) {
+      let mut node = arc_node.write().unwrap();
+
       node.label = updated_node.label;
 
       for (k, v) in updated_node.properties {
@@ -112,21 +122,30 @@ impl Graph {
       data.to,
       data.properties.clone(),
     );
-    self.edges.insert(edge.id, edge.clone());
+    self
+      .edges
+      .insert(edge.id, Arc::new(RwLock::new(edge.clone())));
     edge
   }
 
   pub fn add_full_edge(&mut self, edge: Edge) -> Edge {
-    self.edges.insert(edge.id, edge.clone());
+    self
+      .edges
+      .insert(edge.id, Arc::new(RwLock::new(edge.clone())));
     edge
   }
 
-  pub fn get_edge(&self, id: usize) -> Option<&Edge> {
-    self.edges.get(&id)
+  pub fn get_edge(&self, id: usize) -> Option<Edge> {
+    match self.edges.get(&id) {
+      Some(edge) => Some(edge.read().unwrap().clone()),
+      None => None,
+    }
   }
 
   pub fn update_edge(&mut self, updated_edge: Edge) {
-    if let Some(edge) = self.edges.get_mut(&updated_edge.id) {
+    if let Some(arc_edge) = self.edges.get_mut(&updated_edge.id) {
+      let mut edge = arc_edge.write().unwrap();
+
       edge.label = updated_edge.label;
 
       for (k, v) in updated_edge.properties {

@@ -41,7 +41,8 @@ impl GraphService {
   ) -> GraphResult<Vec<Node>> {
     let mut graph = self.get_graph(&graph_name).await?;
 
-    let mut created_nodes = vec![Node::new(1, String::new(), HashMap::new()); nodes_data.len()];
+    let mut created_nodes =
+      vec![Node::new(1, String::new(), String::new(), HashMap::new()); nodes_data.len()];
 
     for (i, data) in nodes_data.iter().enumerate() {
       let node = graph.add_node(data);

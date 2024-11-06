@@ -129,9 +129,10 @@ async fn update_node(
 ) -> impl Responder {
   let (graph_name, node_id) = path.clone();
   let label = request.label.clone();
+  let category = request.category.clone();
   let properties = request.properties.clone();
 
-  let node = Node::new(node_id, label, properties);
+  let node = Node::new(node_id, category, label, properties);
 
   match graph_service.update_node(graph_name.clone(), node).await {
     Ok(node) => {
