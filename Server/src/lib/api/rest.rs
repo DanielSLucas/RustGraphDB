@@ -24,7 +24,8 @@ pub async fn run_server(storage_manager: Arc<StorageManager>) -> std::io::Result
           .service(handlers::update_edge)
           .service(handlers::get_graph_adjacency)
           .service(handlers::get_graph_relations)
-          .service(handlers::graph_search),
+          .service(handlers::graph_search)
+          .service(handlers::execute_query),
       )
   })
   .bind("localhost:8080")?

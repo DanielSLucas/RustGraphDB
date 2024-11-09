@@ -10,7 +10,7 @@ use std::sync::Arc;
 const TAM_MIN_GRPAH: usize = 10;
 
 pub type GraphResult<T> = Result<T, GraphError>;
-
+#[derive(Clone)]
 pub struct GraphService {
   storage_manager: Arc<StorageManager>,
 }
@@ -18,6 +18,22 @@ pub struct GraphService {
 impl GraphService {
   pub fn new(storage_manager: Arc<StorageManager>) -> Self {
     Self { storage_manager }
+  }
+
+  pub async fn list_nodes(&self, graph_name: String) -> GraphResult<Vec<Node>> {
+    let graph = self.get_graph(&graph_name).await?;
+    let nodes: Vec<Node> = graph.nodes().values()
+        .map(|node_arc| node_arc.read().unwrap().clone())
+        .collect();
+    Ok(nodes)
+}
+
+  pub async fn list_edges(&self, graph_name: String) -> GraphResult<Vec<Edge>> {
+      let graph = self.get_graph(&graph_name).await?;
+      let edges: Vec<Edge> = graph.edges().values()
+          .map(|edge_arc| edge_arc.read().unwrap().clone())
+          .collect();
+      Ok(edges)
   }
 
   pub async fn create_graph(&self, name: String) -> GraphResult<()> {

@@ -11,6 +11,38 @@ use crate::lib::graph::node::{CreateNodeDTO, Node};
 use crate::lib::services::graph_service::GraphService;
 use crate::lib::utils::logger::{log_error, log_info};
 
+use crate::lib::query::{parser::Query, executor::Executor};
+use actix_web::http::StatusCode;
+use actix_web::web::Query as QueryWeb;
+
+#[derive(Deserialize, Serialize)]
+pub struct QueryRequest {
+    pub query: String,
+}
+#[get("/execute_query/")]
+pub async fn execute_query(
+    query_request: QueryWeb<QueryRequest>,  // Aqui usamos Query para pegar parâmetros de consulta
+    graph_service: web::Data<Arc<GraphService>>,
+) -> impl Responder {
+    let mut query = Query::new();
+    query.parse(&query_request.query);
+
+    match graph_service.execute_query(&query).await {
+        Ok(result) => {
+            log_info("Query executed successfully");
+            HttpResponse::Ok().json(result)
+        }
+        Err(GraphError::InvalidQuery(msg)) => {
+            log_error(&format!("Invalid query: {}", msg));
+            HttpResponse::BadRequest().json(msg)
+        }
+        Err(e) => {
+            log_error(&format!("Error executing query: {:?}", e));
+            HttpResponse::InternalServerError().body(format!("Internal error: {:?}", e))
+        }
+    }
+}
+
 #[get("")]
 async fn list_graphs(graph_service: web::Data<Arc<GraphService>>) -> impl Responder {
   match graph_service.list_graphs().await {

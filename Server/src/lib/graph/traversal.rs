@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::cmp::Ordering;
 use std::time::Duration;
+
 // Estrutura auxiliar para Dijkstra
 #[derive(Eq, PartialEq)]
 struct State {
