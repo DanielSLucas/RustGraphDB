@@ -19,12 +19,14 @@ use actix_web::web::Query as QueryWeb;
 pub struct QueryRequest {
     pub query: String,
 }
+
 #[get("/execute_query/")]
 pub async fn execute_query(
-    query_request: QueryWeb<QueryRequest>,  // Aqui usamos Query para pegar parâmetros de consulta
+    query_request: web::Json<QueryRequest>,  // Aqui usamos Json para pegar parâmetros do corpo
     graph_service: web::Data<Arc<GraphService>>,
 ) -> impl Responder {
     let mut query = Query::new();
+    println!("{:?}", &query_request.query);
     query.parse(&query_request.query);
 
     match graph_service.execute_query(&query).await {

@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
   let dt = Utc::now();
   let timestamp = dt.timestamp();
-  let graph_name = format!("graph_{}", timestamp);
+  let graph_name = format!("graph{}", timestamp);
 
   // Define a URL base da API para onde os dados serão enviados
   let base_url = "http://localhost:8080".to_string();
