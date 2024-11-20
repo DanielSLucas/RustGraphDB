@@ -111,3 +111,16 @@ Pesquisamos e consultamos essas caras aqui:
 - Claude
 - Reddit
 - StackOverflow
+
+# Melhorias
+
+- organização de pastas -> fazer um pacote pai e os filhos
+- pacote de query -> teria td necessário para fazer o parse das query em cypher
+- pacote de graph -> a estrutura do grafo seria seria mais eficiente se usássemos ponteiro. 
+Teria que ter mais algortimos e um executor das queries mais robusto
+- pacote cli -> mudar a conexão de rest para socket, ou então conectar diretamente com o código de maneira que permitisse a cli e servidor coexistirem. Melhorias de quality of life (usabilidade), tipo dar seta pra cima para pegar o comando anterior. E deveria executar as queries em cypher tbm.
+- pacote storage -> mudar a estrutura de arquivos, usar mais de um arquivo tipo neo4j (nodes, edges...); adcionar a possibilidade de exportar dados; cache; leituras mais simples ou compactadas para consultas mais rapidas...
+- pacote server -> adiconar mais tipos de conexão como sockets
+- pacote auth -> adicionar camadas de segurança como usuários, permissões etc.
+- pacote test -> testar fucionalidades e fazer o benchmark deles
+- pacote utils -> melhorar logs para debugs e monitoramento
